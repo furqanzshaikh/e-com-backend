@@ -13,11 +13,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
-}
+
 model Product {
   id           Int             @id @default(autoincrement())
   name         String
@@ -25,10 +21,12 @@ model Product {
   actualPrice  Float
   sellingPrice Float
   category     String
+  boxpack      Boolean
   categories   String[]        @default([])    // If you want multiple categories as array
   sku          String          @unique
   stock        Int             @default(0)
   images       ProductImage[]
+  carts        Cart[]  
   reviews      Review[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
@@ -51,4 +49,25 @@ model Review {
   comment     String?
   reviewer    String?  // reviewer name or userId if auth involved
   createdAt   DateTime @default(now())
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+
+  carts    Cart[]
+}
+
+model Cart {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  productId     Int
+  quantity      Int      @default(1)
+  priceAtAdd    Float
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+  product       Product  @relation(fields: [productId], references: [id])
 }
