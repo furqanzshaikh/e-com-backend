@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -22,7 +19,7 @@ model Product {
   sellingPrice Float
   category     String
   boxpack      Boolean
-  categories   String[]        @default([])    // If you want multiple categories as array
+  categories   String[]        @default([])
   sku          String          @unique
   stock        Int             @default(0)
   images       ProductImage[]
@@ -45,9 +42,9 @@ model Review {
   id          Int      @id @default(autoincrement())
   product     Product  @relation(fields: [productId], references: [id])
   productId   Int
-  rating      Int      // e.g. 1 to 5 stars
+  rating      Int
   comment     String?
-  reviewer    String?  // reviewer name or userId if auth involved
+  reviewer    String?
   createdAt   DateTime @default(now())
 }
 
@@ -70,4 +67,30 @@ model Cart {
 
   user          User     @relation(fields: [userId], references: [id])
   product       Product  @relation(fields: [productId], references: [id])
+}
+
+// --------------------- New Accessory Model ---------------------
+model Accessory {
+  id             Int              @id @default(autoincrement())
+  name           String
+  description    String?
+  actualPrice    Float
+  sellingPrice   Float
+  brand          String
+  compatibility  String?
+  boxpack        Boolean
+  sku            String           @unique
+  stock          Int              @default(0)
+  images         AccessoryImage[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model AccessoryImage {
+  id           Int         @id @default(autoincrement())
+  accessory    Accessory   @relation(fields: [accessoryId], references: [id])
+  accessoryId  Int
+  url          String
+  alt          String?
+  createdAt    DateTime    @default(now())
 }
