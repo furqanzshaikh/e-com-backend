@@ -11,6 +11,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --------------------- Enums ---------------------
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// --------------------- Models ---------------------
+
 model Product {
   id           Int             @id @default(autoincrement())
   name         String
@@ -49,14 +58,17 @@ model Review {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
+  id       Int      @id @default(autoincrement())
   name     String
-  email    String @unique
+  email    String   @unique
   password String
+  role     String   @default("USER")
 
   carts    Cart[]
-}
 
+  createdAt DateTime @default(now())    // ← add this line
+  updatedAt DateTime @updatedAt         // ← optional, but recommended
+}
 model Cart {
   id            Int      @id @default(autoincrement())
   userId        Int
@@ -69,7 +81,6 @@ model Cart {
   product       Product  @relation(fields: [productId], references: [id])
 }
 
-// --------------------- New Accessory Model ---------------------
 model Accessory {
   id             Int              @id @default(autoincrement())
   name           String

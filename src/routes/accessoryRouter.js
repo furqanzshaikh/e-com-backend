@@ -8,19 +8,21 @@ const {
   deleteAccessory
 } = require('../controllers/accessoryController');
 
-// CREATE
-router.post('/create', createAccessory);
+const verifyAdminOrSuperAdmin = require('../middleware/verifyAdminOrSuperAdmin');
 
-// READ ALL
+// CREATE - only for Admin/Super Admin
+router.post('/create', verifyAdminOrSuperAdmin, createAccessory);
+
+// READ ALL - public
 router.get('/get', getAllAccessories);
 
-// READ ONE
+// READ ONE - public
 router.get('/get/:id', getAccessoryById);
 
-// UPDATE
-router.put('/update/:id', updateAccessory);
+// UPDATE - optional: also restrict if needed
+router.put('/update/:id', verifyAdminOrSuperAdmin, updateAccessory);
 
-// DELETE
-router.delete('/delete/:id', deleteAccessory);
+// DELETE - only for Admin/Super Admin
+router.delete('/delete/:id', verifyAdminOrSuperAdmin, deleteAccessory);
 
 module.exports = router;

@@ -12,26 +12,23 @@ const {
 } = require('../controllers/productController');
 
 const verifyToken = require('../middleware/authMiddleware');
+const verifyAdminOrSuperAdmin = require('../middleware/verifyAdminOrSuperAdmin');
 
 const router = Router();
 
-// Public Product Routes
+// ✅ Public Product Routes
 router.get('/all', getAllProducts);
 router.get('/:id', getProductById);
 
-// Admin/Protected Product Routes (can also be wrapped with an admin middleware if needed)
-router.post('/create', createProduct);
-router.post('/createmany', createMultipleProducts);
-router.patch('/update/:id', updateProduct);
-router.delete('/delete/:id', deleteProduct);
+// ✅ Admin/SuperAdmin Product Routes
+router.post('/create', verifyAdminOrSuperAdmin, createProduct);
+router.post('/createmany', verifyAdminOrSuperAdmin, createMultipleProducts);
+router.patch('/update/:id', verifyAdminOrSuperAdmin, updateProduct);
+router.delete('/delete/:id', verifyAdminOrSuperAdmin, deleteProduct);
 
-// ✅ CART ROUTES — Require Authentication
+// ✅ Cart Routes (Require Logged-in User)
 router.post('/cart/add', verifyToken, handleAddToCart);
-
-// ✅ Instead of using :id for getProductFromCart, get userId from token
 router.get('/cart/get', verifyToken, getProductFromCart);
-
-// ✅ Deleting item from cart (single item)
 router.delete('/cart/delete/:cartItemId', verifyToken, deleteFromCart);
 
 module.exports = router;
