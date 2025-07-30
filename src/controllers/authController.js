@@ -45,7 +45,15 @@ exports.login = async (req, res) => {
     }
 
     // 3. Create JWT
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
+   const token = jwt.sign(
+  { 
+    userId: user.id, 
+    name: user.name,         // optional, for showing name in header
+    role: user.role          // ✅ include role here
+  },
+  JWT_SECRET,
+  { expiresIn: '1d' }
+);
 
     // 4. Set cookie
     res.cookie("token", token, {

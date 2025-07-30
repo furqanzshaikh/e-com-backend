@@ -5,8 +5,8 @@ const verifySuperAdmin = require("../middleware/verifySuperAdmin");
 
 router.get("/all", verifySuperAdmin, userController.getAllUsers);
 router.get("/byid/:id", verifySuperAdmin, userController.getUserById);
-router.post("/create", verifySuperAdmin, userController.createUser);
-router.put("/update/:id", verifySuperAdmin, userController.updateUser);
-router.delete("/delete/:id", verifySuperAdmin, userController.deleteUser);
+router.post("/create", userController.createUser);
+router.put("/update/:id", userController.updateUser);
+router.delete("/delete/:id", userController.deleteUser);
 
 module.exports = router;

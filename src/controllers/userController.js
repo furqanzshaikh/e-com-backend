@@ -84,12 +84,12 @@ const createUser = async (req, res) => {
 // Update user
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { name, email } = req.body;
+  const { name, email, role } = req.body; // ✅ include role
 
   try {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
-      data: { name, email },
+      data: { name, email, role }, // ✅ include role
       select: {
         id: true,
         name: true,
@@ -105,6 +105,7 @@ const updateUser = async (req, res) => {
     res.status(500).json({ error: 'Failed to update user' });
   }
 };
+
 
 // Delete user
 const deleteUser = async (req, res) => {
