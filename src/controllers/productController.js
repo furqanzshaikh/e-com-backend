@@ -6,14 +6,22 @@ const jwt = require('jsonwebtoken');
 const getAllProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      include: { images: true }
+      include: {
+        images: true,
+        categories: true, // ✅ include categories
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
     res.status(200).json({ message: "success", data: products });
   } catch (error) {
     console.error("Error fetching products:", error);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 };
+
 
 // Get single product by ID with images
 const getProductById = async (req, res) => {
@@ -27,7 +35,10 @@ const getProductById = async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
       where: { id: parsedId },
-      include: { images: true },
+      include: {
+        images: true,
+        categories: true, // ✅ include related categories if using relation
+      },
     });
 
     if (!product) {
@@ -43,12 +54,29 @@ const getProductById = async (req, res) => {
 
 
 
-// Create a new product with images
 const createProduct = async (req, res) => {
-  const { name, description, actualPrice, sellingPrice, category, stock, images, boxpack, categories } = req.body;
+  const {
+    name,
+    description,
+    actualPrice,
+    sellingPrice,
+    category, // should be array of category names
+    stock,
+    images = [],
+    boxpack
+  } = req.body;
 
-  if (!name || !actualPrice || !sellingPrice || !category) {
-    return res.status(400).json({ error: "Name, actualPrice, sellingPrice and category are required" });
+  // Basic validation
+  if (
+    !name ||
+    typeof actualPrice !== 'number' ||
+    typeof sellingPrice !== 'number' ||
+    !Array.isArray(category) ||
+    category.length === 0
+  ) {
+    return res.status(400).json({
+      error: "Required fields: name, actualPrice (number), sellingPrice (number), and category (non-empty array)",
+    });
   }
 
   try {
@@ -58,67 +86,105 @@ const createProduct = async (req, res) => {
         description,
         actualPrice,
         sellingPrice,
-        boxpack,
-        category,
-        categories: categories || [],
-        stock: stock || 0,
+        boxpack: boxpack ?? false,
+        stock: stock ?? 0,
+
+        // Many-to-many relation for categories
+        categories: {
+          connectOrCreate: category.map((catName) => ({
+            where: { name: catName },
+            create: { name: catName },
+          })),
+        },
+
+        // One-to-many relation for images
         images: {
-          create: images || [],
+          create: images.map((img) => ({
+            url: img.url,
+            alt: img.alt || name,
+          })),
         },
       },
-      include: { images: true },
+      include: {
+        images: true,
+        categories: true,
+      },
     });
 
-    res.status(201).json({ message: "Product created", data: newProduct });
+    res.status(201).json({ message: "Product created successfully", data: newProduct });
   } catch (error) {
     console.error("Error creating product:", error);
-    res.status(500).json({ error: 'Failed to create product' });
+    res.status(500).json({ error: "Failed to create product", details: error.message });
   }
 };
+
 
 // Update product (including images)
 const updateProduct = async (req, res) => {
   const { id } = req.params;
-  const { name, description, actualPrice, sellingPrice, category, stock, images, boxpack, categories } = req.body;
+  const {
+    name,
+    description,
+    actualPrice,
+    sellingPrice,
+    category, // category is expected to be array of category names
+    stock,
+    images = [],
+    boxpack
+  } = req.body;
 
   try {
+    const productId = parseInt(id);
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product ID' });
+    }
+
+    // Update main product fields
     const updatedProduct = await prisma.product.update({
-      where: { id: parseInt(id) },
+      where: { id: productId },
       data: {
         name,
         description,
         actualPrice,
         sellingPrice,
-        category,
         boxpack,
-        categories,
         stock,
+        // Clear and replace categories
+        categories: {
+          set: [], // Remove all existing
+          connectOrCreate: category?.map((catName) => ({
+            where: { name: catName },
+            create: { name: catName },
+          })) || [],
+        },
       },
     });
 
-    // Optional: Update images
-    if (images) {
-      await prisma.productImage.deleteMany({ where: { productId: updatedProduct.id } });
+    // Update images (delete old & insert new)
+    await prisma.productImage.deleteMany({ where: { productId } });
 
-      if (images.length > 0) {
-        const imagesToCreate = images.map(img => ({
-          productId: updatedProduct.id,
-          url: img.url,
-          alt: img.alt || null,
-        }));
-        await prisma.productImage.createMany({ data: imagesToCreate });
-      }
+    if (images.length > 0) {
+      const imagesToCreate = images.map((img) => ({
+        productId,
+        url: img.url,
+        alt: img.alt || name,
+      }));
+      await prisma.productImage.createMany({ data: imagesToCreate });
     }
 
-    const productWithImages = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
-      include: { images: true },
+    // Return full product with updated categories & images
+    const productWithDetails = await prisma.product.findUnique({
+      where: { id: productId },
+      include: {
+        images: true,
+        categories: true,
+      },
     });
 
-    res.status(200).json({ message: "Product updated", data: productWithImages });
+    res.status(200).json({ message: 'Product updated successfully', data: productWithDetails });
   } catch (error) {
-    console.error("Error updating product:", error);
-    res.status(500).json({ error: 'Failed to update product' });
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Failed to update product', details: error.message });
   }
 };
 
@@ -153,43 +219,66 @@ const createMultipleProducts = async (req, res) => {
         description,
         actualPrice,
         sellingPrice,
-        category,
+        brand, // ✅ Required field
+        category, // ✅ Array of category names
         boxpack,
-        categories,
         stock,
-        images
+        images = [],
       } = product;
 
-      if (!name || !actualPrice || !sellingPrice || !category) {
-        continue; // Skip invalid product
+      // Validate required fields
+      if (
+        !name ||
+        !actualPrice ||
+        !sellingPrice ||
+        !brand ||
+        !Array.isArray(category) ||
+        category.length === 0
+      ) {
+        console.warn("⚠️ Skipping invalid product:", product);
+        continue;
       }
 
+      // Create product
       const newProduct = await prisma.product.create({
         data: {
           name,
           description,
           actualPrice,
           sellingPrice,
-          category,
+          brand,
           boxpack,
-          categories: categories || [],
           stock: stock || 0,
+          categories: {
+            connectOrCreate: category.map((catName) => ({
+              where: { name: catName },
+              create: { name: catName },
+            })),
+          },
           images: {
-            create: images || [],
+            create: images.map((img) => ({
+              url: img.url,
+              alt: img.alt || name,
+            })),
           },
         },
-        include: { images: true },
+        include: {
+          images: true,
+          categories: true,
+        },
       });
 
       createdProducts.push(newProduct);
     }
 
-    res.status(201).json({ message: "Products created", data: createdProducts });
+    res.status(201).json({ message: "Products created successfully", data: createdProducts });
   } catch (error) {
-    console.error("Error creating products:", error);
-    res.status(500).json({ error: 'Failed to create products' });
+    console.error("❌ Error creating products:", error);
+    res.status(500).json({ error: 'Failed to create products', details: error.message });
   }
 };
+
+
 
 
 const createAccessory = async (req, res) => {
@@ -204,9 +293,9 @@ const createAccessory = async (req, res) => {
       boxpack,
       stock,
       images = [],
+      categories = [] // this should be an array of strings
     } = req.body;
 
-    // Validate required fields
     if (!name || !actualPrice || !sellingPrice || !stock) {
       return res.status(400).json({
         success: false,
@@ -214,7 +303,6 @@ const createAccessory = async (req, res) => {
       });
     }
 
-    // Create accessory with images
     const accessory = await prisma.accessory.create({
       data: {
         name,
@@ -231,8 +319,17 @@ const createAccessory = async (req, res) => {
             alt: img.alt || name,
           })),
         },
+        categories: {
+          connectOrCreate: categories.map((cat) => ({
+            where: { name: cat },
+            create: { name: cat }
+          })),
+        },
       },
-      include: { images: true },
+      include: {
+        images: true,
+        categories: true
+      },
     });
 
     res.status(201).json({ success: true, data: accessory });
@@ -246,15 +343,98 @@ const createAccessory = async (req, res) => {
   }
 };
 
+
+const createManyAccessories = async (req, res) => {
+  try {
+    const accessories = req.body;
+
+    if (!Array.isArray(accessories) || accessories.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request body must be a non-empty array of accessories',
+      });
+    }
+
+    const createdAccessories = [];
+
+    for (const item of accessories) {
+      const {
+        name,
+        description,
+        actualPrice,
+        sellingPrice,
+        brand,
+        compatibility,
+        boxpack,
+        stock,
+        categories = [], // should be an array of category names
+        images = [],
+      } = item;
+
+      // Validate required fields
+      if (!name || !actualPrice || !sellingPrice || !stock || categories.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            'Missing required fields in one of the accessories: name, actualPrice, sellingPrice, stock, categories[]',
+        });
+      }
+
+      const newAccessory = await prisma.accessory.create({
+        data: {
+          name,
+          description,
+          actualPrice,
+          sellingPrice,
+          brand,
+          compatibility,
+          boxpack,
+          stock,
+          categories: {
+            connectOrCreate: categories.map((cat) => ({
+              where: { name: cat },
+              create: { name: cat },
+            })),
+          },
+          images: {
+            create: images.map((img) => ({
+              url: img.url,
+              alt: img.alt || name,
+            })),
+          },
+        },
+        include: { images: true, categories: true },
+      });
+
+      createdAccessories.push(newAccessory);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Accessories created successfully',
+      data: createdAccessories,
+    });
+  } catch (error) {
+    console.error('Bulk accessory creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create accessories',
+      error: error.message || error,
+    });
+  }
+};
+
+
 // READ All Accessories
 const getAllAccessories = async (req, res) => {
   try {
     const accessories = await prisma.accessory.findMany({
       include: {
         images: true,
+        categories: true, // ✅ Include categories in response
       },
       orderBy: {
-        createdAt: 'desc', // Optional: shows latest first
+        createdAt: 'desc',
       },
     });
 
@@ -279,7 +459,6 @@ const getAccessoryById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Convert id to number if it's coming as string
     const numericId = parseInt(id, 10);
     if (isNaN(numericId)) {
       return res.status(400).json({ success: false, message: 'Invalid accessory ID' });
@@ -287,7 +466,10 @@ const getAccessoryById = async (req, res) => {
 
     const accessory = await prisma.accessory.findUnique({
       where: { id: numericId },
-      include: { images: true },
+      include: {
+        images: true,
+        categories: true, // ✅ Include categories in the result
+      },
     });
 
     if (!accessory) {
@@ -310,6 +492,10 @@ const getAccessoryById = async (req, res) => {
 const updateAccessory = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid accessory ID' });
+    }
+
     const {
       name,
       description,
@@ -319,8 +505,10 @@ const updateAccessory = async (req, res) => {
       compatibility,
       boxpack,
       stock,
+      categories = [] // Expecting an array of category names
     } = req.body;
 
+    // Update accessory and connect categories
     const accessory = await prisma.accessory.update({
       where: { id },
       data: {
@@ -333,39 +521,65 @@ const updateAccessory = async (req, res) => {
         boxpack,
         stock,
         updatedAt: new Date(),
+        categories: {
+          set: [], // clear existing relations
+          connectOrCreate: categories.map((cat) => ({
+            where: { name: cat },
+            create: { name: cat },
+          })),
+        },
       },
-      include: { images: true },
+      include: {
+        images: true,
+        categories: true,
+      },
     });
 
     res.json({ success: true, data: accessory });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update accessory' });
+    console.error('❌ Error updating accessory:', error);
+    res.status(500).json({ success: false, message: 'Failed to update accessory', error: error.message });
   }
 };
+
 
 // DELETE Accessory
 const deleteAccessory = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid accessory ID' });
+    }
 
-    // Delete related images first
+    // Disconnect categories from accessory (many-to-many relation)
+    await prisma.accessory.update({
+      where: { id },
+      data: {
+        categories: {
+          set: [] // Removes all category relations
+        }
+      }
+    });
+
+    // Delete related images
     await prisma.accessoryImage.deleteMany({ where: { accessoryId: id } });
 
-    // Then delete the accessory
+    // Delete the accessory itself
     await prisma.accessory.delete({ where: { id } });
 
     res.json({ success: true, message: 'Accessory deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete accessory' });
+    console.error('❌ Error deleting accessory:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete accessory', error: error.message });
   }
 };
 
 // Add to cart
-const handleAddToCart = async (req, res) => {
+const handleAddToPart = async (req, res) => {
   const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_here';
 
   try {
-    // 🔐 Token validation
+    // Token validation
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: 'Unauthorized: Token missing or malformed' });
@@ -385,77 +599,172 @@ const handleAddToCart = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User ID missing from token' });
     }
 
-    // 📥 Extract body fields
-    const { sellingPrice, productId, accessoryId, quantity = 1 } = req.body;
+    // Accept an array of items to add
+    const items = req.body; // expecting array of { partId, quantity }
 
-    // 🧾 Validation
-    if (!sellingPrice || (!productId && !accessoryId)) {
-      return res.status(400).json({ message: 'Required fields missing: sellingPrice and either productId or accessoryId' });
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Request body must be a non-empty array' });
     }
 
-    if (productId && accessoryId) {
-      return res.status(400).json({ message: 'Provide only one: productId or accessoryId — not both' });
-    }
+    const addedItems = [];
 
-    let existingCartItem = null;
-    let itemType = '';
-    let itemExists = false;
+    for (const item of items) {
+      const { productId, accessoryId, partId, quantity = 1 } = item;
 
-    // 🧩 Handle Product
-    if (productId) {
-      const product = await prisma.product.findUnique({ where: { id: Number(productId) } });
-      if (!product) return res.status(404).json({ message: 'Product not found' });
-
-      itemType = 'product';
-      itemExists = true;
-      existingCartItem = await prisma.cart.findFirst({
-        where: { userId, productId: Number(productId) }
-      });
-    }
-
-    // 🧩 Handle Accessory
-    if (accessoryId) {
-      const accessory = await prisma.accessory.findUnique({ where: { id: Number(accessoryId) } });
-      if (!accessory) return res.status(404).json({ message: 'Accessory not found' });
-
-      itemType = 'accessory';
-      itemExists = true;
-      existingCartItem = await prisma.cart.findFirst({
-        where: { userId, accessoryId: Number(accessoryId) }
-      });
-    }
-
-    // 🔁 Update if item already in cart
-    if (existingCartItem) {
-      const updated = await prisma.cart.update({
-        where: { id: existingCartItem.id },
-        data: {
-          quantity: existingCartItem.quantity + Number(quantity),
-          priceAtAdd: sellingPrice,
-        }
-      });
-
-      return res.status(200).json({ message: `${itemType} quantity updated in cart`, data: updated });
-    }
-
-    // ➕ Add new item to cart
-    const cartItem = await prisma.cart.create({
-      data: {
-        userId,
-        productId: productId ? Number(productId) : null,
-        accessoryId: accessoryId ? Number(accessoryId) : null,
-        quantity: Number(quantity),
-        priceAtAdd: sellingPrice
+      const selectedIds = [productId, accessoryId, partId].filter(Boolean);
+      if (selectedIds.length !== 1) {
+        return res.status(400).json({ message: 'Each item must have exactly one of: productId, accessoryId, or partId' });
       }
-    });
 
-    return res.status(201).json({ message: `${itemType} added to cart`, data: cartItem });
+      let itemType = '';
+      let itemId = null;
+      let finalPrice = 0;
+      let existingCartItem = null;
 
+      if (productId) {
+        const product = await prisma.product.findUnique({ where: { id: Number(productId) } });
+        if (!product) return res.status(404).json({ message: `Product not found: ${productId}` });
+
+        itemType = 'product';
+        itemId = Number(productId);
+        finalPrice = product.price;
+        existingCartItem = await prisma.cart.findFirst({ where: { userId, productId: itemId } });
+      }
+
+      if (accessoryId) {
+        const accessory = await prisma.accessory.findUnique({ where: { id: Number(accessoryId) } });
+        if (!accessory) return res.status(404).json({ message: `Accessory not found: ${accessoryId}` });
+
+        itemType = 'accessory';
+        itemId = Number(accessoryId);
+        finalPrice = accessory.price;
+        existingCartItem = await prisma.cart.findFirst({ where: { userId, accessoryId: itemId } });
+      }
+
+      if (partId) {
+        const part = await prisma.part.findUnique({ where: { id: Number(partId) } });
+        if (!part) return res.status(404).json({ message: `Part not found: ${partId}` });
+
+        itemType = 'part';
+        itemId = Number(partId);
+        finalPrice = part.price;
+        existingCartItem = await prisma.cart.findFirst({ where: { userId, partId: itemId } });
+      }
+
+      if (existingCartItem) {
+        const updated = await prisma.cart.update({
+          where: { id: existingCartItem.id },
+          data: {
+            quantity: existingCartItem.quantity + Number(quantity),
+            priceAtAdd: finalPrice,
+          },
+        });
+        addedItems.push({ message: `${itemType} quantity updated in cart`, data: updated });
+      } else {
+        const cartItem = await prisma.cart.create({
+          data: {
+            userId,
+            productId: productId ? itemId : null,
+            accessoryId: accessoryId ? itemId : null,
+            partId: partId ? itemId : null,
+            quantity: Number(quantity),
+            priceAtAdd: finalPrice,
+          },
+        });
+        addedItems.push({ message: `${itemType} added to cart`, data: cartItem });
+      }
+    }
+
+    return res.status(201).json({ message: 'Items processed', items: addedItems });
   } catch (error) {
     console.error('Add to cart error:', error);
     return res.status(500).json({ message: 'Something went wrong', error: error.message || error });
   }
 };
+
+
+
+
+
+const addToCart = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const rawItems = req.body;
+    const items = Array.isArray(rawItems) ? rawItems : [rawItems]; // ✅ normalize input
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Request body must be a non-empty array or object' });
+    }
+
+    const addedItems = [];
+
+    for (const item of items) {
+      const { productId, accessoryId, partId, quantity, sellingPrice } = item;
+
+      if (!productId && !accessoryId && !partId) {
+        return res.status(400).json({
+          message: 'Each item must have either productId, accessoryId, or partId',
+        });
+      }
+
+      if (!quantity || quantity < 1 || typeof sellingPrice !== 'number') {
+        return res.status(400).json({
+          message: 'Each item must have a valid quantity and sellingPrice',
+        });
+      }
+
+      // Check if item already exists in cart
+      const existingItem = await prisma.cart.findFirst({
+        where: {
+          userId,
+          productId: productId || undefined,
+          accessoryId: accessoryId || undefined,
+          partId: partId || undefined,
+        },
+      });
+
+      let cartItem;
+
+      if (existingItem) {
+        // Update quantity if item exists
+        cartItem = await prisma.cart.update({
+          where: { id: existingItem.id },
+          data: {
+            quantity: existingItem.quantity + quantity,
+            priceAtAdd: sellingPrice, // optionally update price
+          },
+        });
+      } else {
+        // Create new cart item
+        cartItem = await prisma.cart.create({
+          data: {
+            userId,
+            productId: productId || null,
+            accessoryId: accessoryId || null,
+            partId: partId || null,
+            quantity,
+            priceAtAdd: sellingPrice,
+          },
+        });
+      }
+
+      addedItems.push(cartItem);
+    }
+
+    return res.status(200).json({
+      message: 'Items added to cart',
+      data: addedItems,
+    });
+  } catch (error) {
+    console.error('❌ Error in addToCart:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+
+
+
 
 // Get cart items for logged-in user
 const getProductFromCart = async (req, res) => {
@@ -466,17 +775,20 @@ const getProductFromCart = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User ID missing' });
     }
 
-    const cartItems = await prisma.cart.findMany({
-      where: { userId },
-      include: {
-        product: {
-          include: { images: true },
-        },
-        accessory: {
-          include: { images: true },
-        },
-      },
-    });
+ const cartItems = await prisma.cart.findMany({
+  where: { userId },
+  include: {
+    product: {
+      include: { images: true },
+    },
+    accessory: {
+      include: { images: true },
+    },
+    part: {
+      include: { images: true },
+    }, 
+  },
+});
 
     return res.status(200).json({
       message: 'Cart fetched successfully',
@@ -588,7 +900,7 @@ module.exports = {
   updateCart,
   deleteFromCart,
   getProductFromCart,
-  handleAddToCart,
+  handleAddToPart,
   getAllProducts,
   getProductById,
   createProduct,
@@ -596,11 +908,12 @@ module.exports = {
   deleteProduct,
   createMultipleProducts,
 deleteAllFromCart,
-
+addToCart,
   createAccessory,
   getAllAccessories,
   getAccessoryById,
   updateAccessory,
   deleteAccessory,
+  createManyAccessories
 };
 

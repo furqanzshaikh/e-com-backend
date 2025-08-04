@@ -6,7 +6,8 @@ const {
   updateProduct,
   createMultipleProducts,
   deleteProduct,
-  handleAddToCart,
+  handleAddToPart,
+  addToCart,
   getProductFromCart,
   deleteFromCart,
   updateCart,
@@ -16,6 +17,7 @@ const {
   updateAccessory,
   deleteAccessory,
   deleteAllFromCart,
+  createManyAccessories,
 } = require('../controllers/productController');
 
 const { placeOrder } = require('../controllers/orderController');
@@ -33,17 +35,19 @@ router.get('/accessories/:id', getAccessoryById);
 
 // ✅ Admin/SuperAdmin Accessory Routes
 router.post('/accessories/create', verifyAdminOrSuperAdmin, createAccessory);
+router.post('/accessories/create/many', verifyAdminOrSuperAdmin, createManyAccessories);
 router.patch('/accessories/update/:id', verifyAdminOrSuperAdmin, updateAccessory);
 router.delete('/accessories/delete/:id', verifyAdminOrSuperAdmin, deleteAccessory);
 
 // ✅ Admin/SuperAdmin Product Routes
 router.post('/create', verifyAdminOrSuperAdmin, createProduct);
-router.post('/createmany', verifyAdminOrSuperAdmin, createMultipleProducts);
+router.post('/create/many', verifyAdminOrSuperAdmin, createMultipleProducts);
 router.patch('/update/:id', verifyAdminOrSuperAdmin, updateProduct);
 router.delete('/delete/:id', verifyAdminOrSuperAdmin, deleteProduct);
 
 // ✅ Cart Routes (Require Login)
-router.post('/cart/add', verifyToken, handleAddToCart);
+router.post('/part/add', verifyToken, handleAddToPart);
+router.post('/cart/add', verifyToken, addToCart);
 router.get('/cart/get', verifyToken, getProductFromCart);
 router.delete('/cart/all', verifyToken, deleteAllFromCart);
 router.delete('/cart/delete/:cartItemId', verifyToken, deleteFromCart);

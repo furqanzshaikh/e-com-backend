@@ -32,7 +32,7 @@ app.use('/products', productRouter);
 app.use(authRouter);
 app.use('/order', orderRoutes);
 app.use('/parts', partsRouter);
-app.use('/custom-builds', buildRouter);
+app.use('/custom-build', buildRouter);
 
 
 // Start server

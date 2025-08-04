@@ -1,14 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const customBuildController = require('../controllers/customBuildController');
+const verifyToken = require('../middleware/authMiddleware');
 
-// POST /api/custom-builds
-router.post('/', customBuildController.createCustomBuild);
-
-// GET /api/custom-builds/user/:userId
-router.get('/user/:userId', customBuildController.getBuildsByUser);
-
-// GET /api/custom-builds/:id
-router.get('/:id', customBuildController.getBuildById);
+router.post('/create',verifyToken, customBuildController.createCustomBuild);
+router.get('/user/:userId',verifyToken, customBuildController.getBuildsByUser);
+router.get('/:id', verifyToken,customBuildController.getBuildById);
+router.put('/:id',verifyToken, customBuildController.updateBuildById);
+router.delete('/:id',verifyToken, customBuildController.deleteBuildById);
 
 module.exports = router;

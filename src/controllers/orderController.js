@@ -16,7 +16,6 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
 
   const { cartItems, billingDetails, total, coupon } = order;
 
-
   try {
     const orderItems = [];
 
@@ -30,8 +29,9 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
         orderItems.push({
           productId: product.id,
           accessoryId: null,
+          partId: null,
           quantity: item.quantity,
-          price: item.price, // ✅ use price from frontend/cart
+          price: item.price, // use price from frontend/cart
         });
       } else if (item.type === 'accessory') {
         const accessory = await prisma.accessory.findUnique({ where: { id } });
@@ -40,8 +40,20 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
         orderItems.push({
           productId: null,
           accessoryId: accessory.id,
+          partId: null,
           quantity: item.quantity,
-          price: item.price, // ✅ use price from frontend/cart
+          price: item.price,
+        });
+      } else if (item.type === 'part') {
+        const part = await prisma.part.findUnique({ where: { id } });
+        if (!part) continue;
+
+        orderItems.push({
+          productId: null,
+          accessoryId: null,
+          partId: part.id,
+          quantity: item.quantity,
+          price: item.price,
         });
       }
     }
@@ -50,10 +62,8 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'No valid items found in DB.' });
     }
 
-   
-
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    console.log(totalAmount)
+    console.log('Total amount:', totalAmount);
 
     const savedOrder = await prisma.order.create({
       data: {
@@ -67,8 +77,10 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
       include: { items: true },
     });
 
+    // Clear user's cart after order placed
     await prisma.cart.deleteMany({ where: { userId } });
 
+    // Prepare email HTML
     const html = `
       <h2>🧾 New Order Received</h2>
       <p><strong>Name:</strong> ${billingDetails.firstName} ${billingDetails.lastName}</p>
@@ -90,11 +102,12 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
       <p><strong>Coupon:</strong> ${coupon || 'None'}</p>
     `;
 
+    // Setup nodemailer transporter
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: 'furqanshaikh939@gmail.com',
-        pass: 'smdj irys luou kzve', // App password
+        pass: 'smdj irys luou kzve', // your app password
       },
     });
 
@@ -116,31 +129,24 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
   }
 });
 
-
-
 router.get('/', verifyToken, async (req, res) => {
   try {
-    // 🧠 Fetch the current user
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-
-    // 🔐 Safety checks
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized: User not found' });
-    }
+    if (!user) return res.status(401).json({ error: 'Unauthorized: User not found' });
 
     const isSuperAdmin = user.role === 'SUPER_ADMIN';
     console.log('Logged in user ID:', user.id);
     console.log('User Role:', user.role);
     console.log('Is Super Admin:', isSuperAdmin);
 
-    // 🔍 Fetch orders based on role
     const orders = await prisma.order.findMany({
-      where: isSuperAdmin ? {} : { userId: user.id }, // 🔐 Secure filter
+      where: isSuperAdmin ? {} : { userId: user.id },
       include: {
         items: {
           include: {
             product: true,
             accessory: true,
+            part: true,  // included parts here
           },
         },
         user: {
@@ -152,31 +158,22 @@ router.get('/', verifyToken, async (req, res) => {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // 🧾 Debug print (optional, remove in prod)
     console.log(`Fetched ${orders.length} order(s) for ${user.role}`);
 
-    res.status(200).json({
-      success: true,
-      orders,
-    });
+    res.status(200).json({ success: true, orders });
   } catch (err) {
     console.error('❌ Error fetching orders:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// ✅ Update order status (super admin only)
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (user.role !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    if (user.role !== 'SUPER_ADMIN') return res.status(403).json({ error: 'Forbidden' });
 
     const updatedOrder = await prisma.order.update({
       where: { id: req.params.id },
@@ -190,13 +187,10 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Delete order (super admin only)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (user.role !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    if (user.role !== 'SUPER_ADMIN') return res.status(403).json({ error: 'Forbidden' });
 
     await prisma.orderItem.deleteMany({ where: { orderId: req.params.id } });
     await prisma.order.delete({ where: { id: req.params.id } });
@@ -207,8 +201,5 @@ router.delete('/:id', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 
 module.exports = router;

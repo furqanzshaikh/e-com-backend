@@ -14,7 +14,7 @@ const isSuperAdmin = async (userId) => {
  */
 exports.createPart = async (req, res) => {
   const userId = req.userId;
-  const { name, type, price } = req.body;
+  const { name, type, price, category, stock = 0 } = req.body;
 
   try {
     if (!(await isSuperAdmin(userId))) {
@@ -22,7 +22,14 @@ exports.createPart = async (req, res) => {
     }
 
     const newPart = await prisma.part.create({
-      data: { name, type, price, userId },
+      data: {
+        name,
+        type,
+        price,
+        category,
+        stock,
+        userId,
+      },
     });
 
     res.status(201).json(newPart);
@@ -62,12 +69,20 @@ exports.getPartById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // ✅ Ensure `id` is valid
+    const partId = parseInt(id, 10);
+    if (isNaN(partId)) {
+      return res.status(400).json({ error: 'Invalid part ID' });
+    }
+
     const part = await prisma.part.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: partId },
       include: { images: true },
     });
 
-    if (!part) return res.status(404).json({ error: 'Part not found' });
+    if (!part) {
+      return res.status(404).json({ error: 'Part not found' });
+    }
 
     res.status(200).json(part);
   } catch (error) {
@@ -75,6 +90,35 @@ exports.getPartById = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Get part by name (used for cart lookup)
+exports.getPartByName = async (req, res) => {
+  const { name } = req.query;
+
+  if (!name) {
+    return res.status(400).json({ message: 'Part name is required' });
+  }
+
+  try {
+    const part = await prisma.part.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: 'insensitive' // ✅ case-insensitive search
+        }
+      }
+    });
+
+    if (!part) return res.status(404).json({ message: 'Part not found' });
+
+    res.json(part);
+  } catch (error) {
+    console.error('❌ Error in getPartByName:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+
 
 /**
  * Update part by ID (SUPER_ADMIN only)

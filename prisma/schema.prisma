@@ -31,9 +31,7 @@ model Product {
   description  String?
   actualPrice  Float
   sellingPrice Float
-  category     String
   boxpack      Boolean
-  categories   String[]        @default([])
   stock        Int             @default(0)
   images       ProductImage[]
   carts        Cart[]  
@@ -41,6 +39,8 @@ model Product {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   orderItems   OrderItem[]
+  brand        String
+  categories   Category[]      @relation("ProductCategories")
 }
 
 model ProductImage {
@@ -52,22 +52,33 @@ model ProductImage {
   createdAt DateTime @default(now())
 }
 
+
+
 model Accessory {
-  id             Int              @id @default(autoincrement())
-  name           String
-  description    String?
-  actualPrice    Float
-  sellingPrice   Float
-  brand          String
-  compatibility  String?
-  boxpack        Boolean
-  stock          Int              @default(0)
-  images         AccessoryImage[]
-  carts          Cart[]
-  orderItems     OrderItem[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id            Int              @id @default(autoincrement())
+  name          String
+  description   String?
+  actualPrice   Float
+  sellingPrice  Float
+  brand         String
+  compatibility String?
+  boxpack       Boolean
+  stock         Int              @default(0)
+  images        AccessoryImage[]
+  carts         Cart[]
+  orderItems    OrderItem[]
+  categories    Category[]       @relation("AccessoryCategories")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 }
+
+model Category {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  products   Product[]   @relation("ProductCategories")
+  accessories Accessory[] @relation("AccessoryCategories")
+}
+
 
 model AccessoryImage {
   id           Int         @id @default(autoincrement())
