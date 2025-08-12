@@ -62,6 +62,7 @@ const createProduct = async (req, res) => {
     sellingPrice,
     category, // should be array of category names
     stock,
+    brand,
     images = [],
     boxpack
   } = req.body;
@@ -86,6 +87,7 @@ const createProduct = async (req, res) => {
         description,
         actualPrice,
         sellingPrice,
+        brand,
         boxpack: boxpack ?? false,
         stock: stock ?? 0,
 
@@ -127,10 +129,11 @@ const updateProduct = async (req, res) => {
     description,
     actualPrice,
     sellingPrice,
-    category, // category is expected to be array of category names
+    category,
     stock,
     images = [],
-    boxpack
+    boxpack,
+    brand 
   } = req.body;
 
   try {
@@ -147,6 +150,7 @@ const updateProduct = async (req, res) => {
         description,
         actualPrice,
         sellingPrice,
+        brand, // <-- And pass it here
         boxpack,
         stock,
         // Clear and replace categories
@@ -187,7 +191,6 @@ const updateProduct = async (req, res) => {
     res.status(500).json({ error: 'Failed to update product', details: error.message });
   }
 };
-
 // Delete product and its images
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
@@ -896,7 +899,55 @@ const updateCart = async (req, res) => {
   }
 };
 
+
+const getAllCategory = async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany();
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Failed to fetch categories' });
+  }
+};
+
+const createCategory = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    // Basic validation
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ message: "Category name is required" });
+    }
+
+    // Check if category already exists
+    const existingCategory = await prisma.category.findUnique({
+      where: { name },
+    });
+
+    if (existingCategory) {
+      return res.status(409).json({ message: "Category already exists" });
+    }
+
+    // Create category
+    const category = await prisma.category.create({
+      data: {
+        name: name.trim(),
+      },
+    });
+
+    res.status(201).json({
+      message: "Category created successfully",
+      category,
+    });
+  } catch (error) {
+    console.error("Error creating category:", error);
+    res.status(500).json({ message: "Failed to create category" });
+  }
+};
+
 module.exports = {
+  createCategory,
+  getAllCategory,
   updateCart,
   deleteFromCart,
   getProductFromCart,

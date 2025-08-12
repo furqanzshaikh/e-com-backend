@@ -7,6 +7,7 @@ const buildRouter = require('./src/routes/customBuildRoutes');
 const partsRouter = require('./src/routes/partRoutes');
 // const accessoryRouter = require('./src/routes/accessoryRouter');
 const orderRoutes = require('./src/controllers/orderController');
+const searchController = require('./src/controllers/searchController');
 const authRouter = require('./src/routes/authRouter');
 const cookieParser = require('cookie-parser');
 
@@ -33,6 +34,7 @@ app.use(authRouter);
 app.use('/order', orderRoutes);
 app.use('/parts', partsRouter);
 app.use('/custom-build', buildRouter);
+app.use('/search', searchController);
 
 
 // Start server

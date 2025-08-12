@@ -1,0 +1,594 @@
+[
+  {
+    "name": "Kingston 2TB XS1000 USB-A 3.2 Gen 2 External SSD SXS1000/2000GA",
+    "description": "",
+    "actualPrice": 15141,
+    "sellingPrice": 11299,
+    "brand": "Kingston",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 10,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/07/Kingston-2TB-XS1000-USB-A-3.2-Gen-2-External-SSD-SXS1000-2000GA-1-1.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Accessories",
+      "Storage",
+      "External SSD"
+    ]
+  },
+  {
+    "name": "Kingston 1TB XS1000 USB-A 3.2 Gen 2 External SSD SXS1000R/1000GA",
+    "description": "",
+    "actualPrice": 9463,
+    "sellingPrice": 7300,
+    "brand": "Kingston",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/07/Kingston-2TB-XS1000-USB-A-3.2-Gen-2-External-SSD-SXS1000-2000GA-1-1.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "External SSD",
+      "Storage"
+    ]
+  },
+  {
+    "name": "Asus RT-N12 Plus B1 N300 Wi-Fi Router",
+    "description": "",
+    "actualPrice": 1735,
+    "sellingPrice": 875,
+    "brand": "Asus",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Asus-RT-N12-300-Mbps-Ethernet-Single-Band-Wi-Fi-Router.jpg",
+        "alt": "Router"
+      }
+    ],
+    "categories": [
+      "Router",
+      "Networking",
+      "Gaming"
+    ]
+  },
+  {
+    "name": "ASUS ROG Pelta Wireless RGB Gaming Headset",
+    "description": "",
+    "actualPrice": 15500,
+    "sellingPrice": 10199,
+    "brand": "ASUS",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/04/ASUS-ROG-Pelta-Wireless-RGB-Gaming-Headset.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone"
+    ]
+  },
+  {
+    "name": "EVM EnX 256GB USB 3.2 Gen 1 Type-C OTG Pen Drive ENXO/256G",
+    "description": "",
+    "actualPrice": 2099,
+    "sellingPrice": 1399,
+    "brand": "EVM",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/02/EVM-EnX-256GB-USB-3.2-Gen-1-Type-C-OTG-Pen-Drive-ENXO-256G.jpg",
+        "alt": "Pendrive"
+      }
+    ],
+    "categories": [
+      "Pen Drive",
+      "Storage"
+    ]
+  },
+  {
+    "name": "Logitech G333 Gaming Earphone (Black) 981-000925",
+    "description": "",
+    "actualPrice": 5895,
+    "sellingPrice": 3997,
+    "brand": "Logitech",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/01/Logitech-G333-Gaming-Earphone-Black-981-000925.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Earphone",
+      "Gaming",
+      "Gaming Headphone",
+      "Headphone",
+      "Gaming Headset",
+      "Headset"
+    ]
+  },
+  {
+    "name": "NZXT Relay Wired PC Gaming Headset (White) AP-WCB40-W2",
+    "description": "",
+    "actualPrice": 21500,
+    "sellingPrice": 13500,
+    "brand": "NZXT",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/12/NZXT-Relay-Wired-PC-Gaming-Headset-White-AP-WCB40-W2.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "NZXT Relay Wired PC Gaming Headset (Black) AP-WCB40-B2",
+    "description": "",
+    "actualPrice": 21500,
+    "sellingPrice": 13500,
+    "brand": "NZXT",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/12/NZXT-Relay-Wired-PC-Gaming-Headset-Black-AP-WCB40-B2.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "EVM ELITE 512GB MICROSD XC CLASS 10 EETF/512GU3",
+    "description": "",
+    "actualPrice": 4697,
+    "sellingPrice": 3131,
+    "brand": "EVM",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/12/EVM-Elite-512GB-MicroSDXC-Class-10-U3-V30-Memory-Card-EETF512GU3.jpg",
+        "alt": "Memory Card"
+      }
+    ],
+    "categories": [
+      "MicroSD Card",
+      "Storage",
+      "Memory Card",
+      "512GB"
+    ]
+  },
+  {
+    "name": "Galax Sonar-04 Gaming Headset (Black) HGS045CSRGBB0",
+    "description": "",
+    "actualPrice": 3500,
+    "sellingPrice": 2100,
+    "brand": "Galax",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/10/Galax-Sonar-04-Gaming-Headset-Black-HGS045CSRGBB0.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "Circle CM325 Wired Optical Mouse",
+    "description": "",
+    "actualPrice": 899,
+    "sellingPrice": 425,
+    "brand": "Circle",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/07/Circle-CM325-Wired-Optical-Mouse.jpg",
+        "alt": "Mouse"
+      }
+    ],
+    "categories": [
+      "Mouse",
+      "Accessories"
+    ]
+  },
+  {
+    "name": "TP Link Archer C24 AC750 Dual-Band Wi-Fi Router",
+    "description": "",
+    "actualPrice": 2250,
+    "sellingPrice": 1302,
+    "brand": "TP-Link",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/07/TP-Link-Archer-C24-AC750-Dual-Band-Wi-Fi-Router.jpg",
+        "alt": "Router"
+      }
+    ],
+    "categories": [
+      "Router",
+      "Networking"
+    ]
+  },
+  {
+    "name": "TP Link Archer C50 AC1200 Wireless Dual Band Router",
+    "description": "",
+    "actualPrice": 2850,
+    "sellingPrice": 1740,
+    "brand": "TP-Link",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/07/TP-Link-Archer-C50-AC1200-Wireless-Dual-Band-Router.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Router",
+      "Networking"
+    ]
+  },
+  {
+    "name": "Synology DiskStation DS223j 2-Bay NAS Enclosure",
+    "description": "",
+    "actualPrice": 30000,
+    "sellingPrice": 19027,
+    "brand": "Synology",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/05/Synology-DiskStation-DS223j-2-Bay-NAS-Enclosure.jpg",
+        "alt": "NAS"
+      }
+    ],
+    "categories": [
+      "NAS",
+      "Storage"
+    ]
+  },
+  {
+    "name": "Asus PN41 Barbone Mini PC – PN41-BBC041MV – 90MR00I1-M00410 (Intel N4500 Celeron Dual Core)",
+    "description": "",
+    "actualPrice": 23000,
+    "sellingPrice": 12767,
+    "brand": "Asus",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Asus-PN41-Barbone-Mini-PC-PN41-BBC041MV-90MR00I1-M00410-Intel-N4500-Celeron-Dual-Core-4.jpg",
+        "alt": "Mini Pc"
+      }
+    ],
+    "categories": [
+      "Mini PC"
+    ]
+  },
+  {
+    "name": "EVM ELITE 256GB MICROSD XC CLASS 10 EETF/256GU3",
+    "description": "",
+    "actualPrice": 2265,
+    "sellingPrice": 1510,
+    "brand": "EVM",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/EVM-ELITE-256GB-MICROSD-XC-CLASS-10-EETF-256GU3.jpg",
+        "alt": "Memory Card"
+      }
+    ],
+    "categories": [
+      "MicroSD Card",
+      "Storage",
+      "Memory Card"
+    ]
+  },
+  {
+    "name": "EVM ELITE 128GB MICROSD XC CLASS 10 EETF/128GU1",
+    "description": "",
+    "actualPrice": 1088,
+    "sellingPrice": 725,
+    "brand": "EVM",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/EVM-ELITE-128GB-MICROSD-XC-CLASS-10.jpg",
+        "alt": "Memory Card"
+      }
+    ],
+    "categories": [
+      "MicroSD Card",
+      "Storage",
+      "Memory Card"
+    ]
+  },
+  {
+    "name": "Circle Caliber Wired USB Multi-device Keyboard (Black) Caliber",
+    "description": "",
+    "actualPrice": 790,
+    "sellingPrice": 450,
+    "brand": "Circle",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Circle-Caliber-Wired-USB-Multi-device-Keyboard-Black-Caliber.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Keyboard",
+      "Accessories"
+    ]
+  },
+  {
+    "name": "Asustor AS1102T 2 Bay Drivestor 2 Desktop NAS",
+    "description": "",
+    "actualPrice": 31864,
+    "sellingPrice": 17262,
+    "brand": "Asustor",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Asustor-AS1102T-2-Bay-Drivestor-2-Desktop-NAS.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "NAS",
+      "Storage"
+    ]
+  },
+  {
+    "name": "Corsair VIRTUOSO PRO Open-Back Gaming Headset (Carbon) CA-9011370-CN",
+    "description": "",
+    "actualPrice": 15500,
+    "sellingPrice": 10827,
+    "brand": "Corsair",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/02/Corsair-VIRTUOSO-PRO-Open-Back-Gaming-Headset-Carbon-CA-9011370-CN.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "Logitech G435 Wireless Gaming Headset (Black-Neon Yellow) 981-001051",
+    "description": "",
+    "actualPrice": 9595,
+    "sellingPrice": 4430,
+    "brand": "Logitech",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/01/Logitech-G435-Wireless-Gaming-Headset-Black-Neon-Yellow-981-001051.jpg",
+        "alt": "Headphone"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "Galax Sonar-04 Gaming Headset (White) HGS045CSRGBW0",
+    "description": "",
+    "actualPrice": 3500,
+    "sellingPrice": 2222,
+    "brand": "Galax",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/10/Galax-Sonar-04-Gaming-Headset-White-HGS045CSRGBW0.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Gaming Headset",
+      "Audio",
+      "Gaming Headphone",
+      "Headphone",
+      "Headset"
+    ]
+  },
+  {
+    "name": "EVM EnSave 512GB Smallest Portable External SSD with 3D NAND Flash EPSSD/512GB",
+    "description": "",
+    "actualPrice": 5982,
+    "sellingPrice": 3988,
+    "brand": "EVM",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/EVM-EnSave-512GB-Smallest-Portable-External-SSD-with-3D-NAND-Flash.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "External SSD",
+      "Storage",
+      "SSD",
+      "512GB"
+    ]
+  },
+  {
+    "name": "Redragon Dyaus K509 Wired Semi Mechanical Gaming Keyboard (Black)",
+    "description": "",
+    "actualPrice": 1600,
+    "sellingPrice": 990,
+    "brand": "Redragon",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Redragon-Dyaus-K509-Wired-Semi-Mechanical-Gaming-Keyboard-Black.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "Gaming Keyboard",
+      "Accessories",
+      "Keyboard"
+    ]
+  },
+  {
+    "name": "Intel NUC 11 Essential Pentium N6005 (Barebone) BNUC11ATKPE0000",
+    "description": "",
+    "actualPrice": 25679,
+    "sellingPrice": 17119,
+    "brand": "Intel",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/06/Intel-NUC-11-Essential-Pentium-N6005-Barebone-BNUC11ATKPE0000.jpg",
+        "alt": "NUC"
+      }
+    ],
+    "categories": [
+      "Mini PC",
+      "Barebone PC"
+    ]
+  },
+  {
+    "name": "Synology DiskStation DS224+ 2-Bay NAS Enclosure",
+    "description": "",
+    "actualPrice": 45000,
+    "sellingPrice": 32858,
+    "brand": "Synology",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2024/05/Synology-DiskStation-DS224-2-Bay-NAS-Enclosure.jpg",
+        "alt": "NAS"
+      }
+    ],
+    "categories": [
+      "NAS",
+      "Storage"
+    ]
+  },
+  {
+    "name": "Coconut WM28 Prism Ergonomic Wireless Mouse (6 Buttons, Low Power Consumption)",
+    "description": "",
+    "actualPrice": 891,
+    "sellingPrice": 399,
+    "brand": "Coconut",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 0,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2023/10/Coconut-WM28-Prism-Ergonomic-Wireless-Mouse.jpg",
+        "alt": "Mouse"
+      }
+    ],
+    "categories": [
+      "Mouse",
+      "Accessories"
+    ]
+  },
+  {
+    "name": "Kingston 2TB XS1000 USB-A 3.2 Gen 2 External SSD SXS1000/2000G",
+    "description": "",
+    "actualPrice": 15141,
+    "sellingPrice": 11299,
+    "brand": "Kingston",
+    "compatibility": null,
+    "boxpack": true,
+    "stock": 1,
+    "images": [
+      {
+        "url": "https://www.primeabgb.com/wp-content/uploads/2025/07/Kingston-2TB-XS1000-USB-A-3.2-Gen-2-External-SSD-SXS1000-2000GA-1-1.jpg",
+        "alt": "SSD"
+      }
+    ],
+    "categories": [
+      "External SSD",
+      "Storage"
+    ]
+  }
+]

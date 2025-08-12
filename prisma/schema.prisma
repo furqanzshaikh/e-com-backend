@@ -27,21 +27,26 @@ enum OrderStatus {
 
 model Product {
   id           Int             @id @default(autoincrement())
-  name         String
-  description  String?
+  name         String          @unique // Prevent duplicate product names
+  description  String?         // Optional description
   actualPrice  Float
   sellingPrice Float
   boxpack      Boolean
   stock        Int             @default(0)
+  brand        String
+
+  // Relations
   images       ProductImage[]
-  carts        Cart[]  
+  carts        Cart[]
   reviews      Review[]
+  orderItems   OrderItem[]
+  categories   Category[]      @relation("ProductCategories")
+
+  // Timestamps
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  orderItems   OrderItem[]
-  brand        String
-  categories   Category[]      @relation("ProductCategories")
 }
+
 
 model ProductImage {
   id        Int      @id @default(autoincrement())
