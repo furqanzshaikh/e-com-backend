@@ -19,7 +19,7 @@ const {
   deleteAllFromCart,
   createManyAccessories,
   getAllCategory,
-  createCategory
+  createCategories
 } = require('../controllers/productController');
 
 const { placeOrder } = require('../controllers/orderController');
@@ -31,7 +31,7 @@ const router = Router();
 // ✅ Public Product Routes
 router.get('/all', getAllProducts);
 router.get('/categories', getAllCategory);
-router.post('/categories', createCategory);
+router.post('/categories', createCategories);
 
 // ✅ Public Accessory Routes
 router.get('/accessories', getAllAccessories);

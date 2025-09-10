@@ -6,128 +6,198 @@ const verifyToken = require('../middleware/authMiddleware');
 const prisma = new PrismaClient();
 const router = express.Router();
 
+
+
 router.post('/send-confirmation', verifyToken, async (req, res) => {
-  const userId = req.userId;
-  const { to, order } = req.body;
+  const userId = req.userId;
+  const { to, order } = req.body;
 
-  if (!to || !order || !order.cartItems || !order.billingDetails) {
-    return res.status(400).json({ error: 'Invalid request data' });
-  }
+  if (!to || !order || !order.cartItems || !order.billingDetails || !order.deliveryMethod) {
+    return res.status(400).json({ error: 'Invalid request data' });
+  }
 
-  const { cartItems, billingDetails, total, coupon } = order;
+  // Added 'store' and 'date' to the destructured order object
+  const { cartItems, billingDetails, total, coupon, deliveryMethod, store, date } = order;
 
-  try {
-    const orderItems = [];
+  // For this example, we'll use a simple object lookup for store details.
+  // In a real application, you would fetch this from your database.
+  const storeLocations = {
+    'hinjewadi': '123 Tech Avenue, Hinjewadi, Pune',
+    'kothrud': '456 Innovation Road, Kothrud, Pune',
+  };
+  
+  let selectedStoreAddress = 'Store address not found.';
+  if (store) { // This is the fix! Check if 'store' exists.
+    selectedStoreAddress = storeLocations[store.toLowerCase()] || 'Store address not found.';
+  }
+  
+  const selectedDate = date ? new Date(date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
-    for (const item of cartItems) {
-      const id = parseInt(item.id);
+  try {
+    const orderItems = [];
 
-      if (item.type === 'product') {
-        const product = await prisma.product.findUnique({ where: { id } });
-        if (!product) continue;
+    // Loop through cart items and find corresponding DB entries
+    for (const item of cartItems) {
+      const id = parseInt(item.id);
 
-        orderItems.push({
-          productId: product.id,
-          accessoryId: null,
-          partId: null,
-          quantity: item.quantity,
-          price: item.price, // use price from frontend/cart
-        });
-      } else if (item.type === 'accessory') {
-        const accessory = await prisma.accessory.findUnique({ where: { id } });
-        if (!accessory) continue;
+      // Check item type and find in the correct Prisma model
+      if (item.type === 'product') {
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product) continue;
+        orderItems.push({ productId: product.id, quantity: item.quantity, price: item.price });
+      } else if (item.type === 'accessory') {
+        const accessory = await prisma.accessory.findUnique({ where: { id } });
+        if (!accessory) continue;
+        orderItems.push({ accessoryId: accessory.id, quantity: item.quantity, price: item.price });
+      } else if (item.type === 'part') {
+        const part = await prisma.part.findUnique({ where: { id } });
+        if (!part) continue;
+        orderItems.push({ partId: part.id, quantity: item.quantity, price: item.price });
+      }
+    }
 
-        orderItems.push({
-          productId: null,
-          accessoryId: accessory.id,
-          partId: null,
-          quantity: item.quantity,
-          price: item.price,
-        });
-      } else if (item.type === 'part') {
-        const part = await prisma.part.findUnique({ where: { id } });
-        if (!part) continue;
+    if (!orderItems.length) {
+      return res.status(400).json({ error: 'No valid items found in DB.' });
+    }
 
-        orderItems.push({
-          productId: null,
-          accessoryId: null,
-          partId: part.id,
-          quantity: item.quantity,
-          price: item.price,
-        });
-      }
-    }
+    // Calculate total amount from validated items
+    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    if (!orderItems.length) {
-      return res.status(400).json({ error: 'No valid items found in DB.' });
-    }
+    // Create a new order record in the database
+    const savedOrder = await prisma.order.create({
+      data: {
+        userId,
+        totalAmount,
+        status: 'PENDING',
+        deliveryMethod: deliveryMethod,
+        items: {
+          create: orderItems,
+        },
+      },
+      include: { items: true },
+    });
 
-    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    console.log('Total amount:', totalAmount);
+    // Clear the user's cart
+    await prisma.cart.deleteMany({ where: { userId } });
 
-    const savedOrder = await prisma.order.create({
-      data: {
-        userId,
-        totalAmount,
-        status: 'PENDING',
-        items: {
-          create: orderItems,
-        },
-      },
-      include: { items: true },
-    });
+    // Note: Hardcoded email credentials are a security risk.
+    // In a production environment, use environment variables.
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'furqanshaikh939@gmail.com',
+        pass: 'smdj irys luou kzve',
+      },
+    });
 
-    // Clear user's cart after order placed
-    await prisma.cart.deleteMany({ where: { userId } });
+    // Email 1: Send confirmation to Admin/Store Owner
+    const adminDeliveryDetailsHtml = deliveryMethod === 'homeDelivery'
+      ? `<p><strong>Method:</strong> Home Delivery</p>
+         <p><strong>Shipping Address:</strong> ${billingDetails.streetAddress1}, ${billingDetails.streetAddress2 || ''}, ${billingDetails.city}, ${billingDetails.state}, ${billingDetails.pin}, ${billingDetails.country}</p>`
+      : `<p><strong>Method:</strong> Store Visit / In-store Pickup</p>
+         <p><strong>Selected Store:</strong> ${store}</p>
+         <p><strong>Pickup Date:</strong> ${selectedDate}</p>`;
 
-    // Prepare email HTML
-    const html = `
-      <h2>🧾 New Order Received</h2>
-      <p><strong>Name:</strong> ${billingDetails.firstName} ${billingDetails.lastName}</p>
-      <p><strong>Address:</strong> ${billingDetails.streetAddress1}, ${billingDetails.streetAddress2}, ${billingDetails.city}, ${billingDetails.state}, ${billingDetails.pin}, ${billingDetails.country}</p>
-      <p><strong>Email:</strong> ${billingDetails.email}</p>
-      <p><strong>Phone:</strong> ${billingDetails.phone || 'N/A'}</p>
-      <p><strong>Notes:</strong> ${billingDetails.notes || 'None'}</p>
-      <hr/>
-      <h3>🛒 Items:</h3>
-      <ul>
-        ${cartItems
-          .map(
-            (item) =>
-              `<li>${item.name} × ${item.quantity} — ₹${(item.price * item.quantity).toFixed(2)}</li>`
-          )
-          .join('')}
-      </ul>
-      <p><strong>Total:</strong> ₹${total}</p>
-      <p><strong>Coupon:</strong> ${coupon || 'None'}</p>
-    `;
+    const adminHtml = `
+      <h2>🧾 New Order Received</h2>
+      <p><strong>Order ID:</strong> ${savedOrder.id}</p>
+      <p><strong>Customer Name:</strong> ${billingDetails.firstName} ${billingDetails.lastName}</p>
+      <p><strong>Customer Email:</strong> ${billingDetails.email}</p>
+      <p><strong>Phone:</strong> ${billingDetails.phone || 'N/A'}</p>
+      <h3>🚚 Delivery Details:</h3>
+      ${adminDeliveryDetailsHtml}
+      <p><strong>Notes:</strong> ${billingDetails.notes || 'None'}</p>
+      <hr/>
+      <h3>🛒 Items:</h3>
+      <ul>
+        ${cartItems.map(item => `<li>${item.name} × ${item.quantity} — ₹${(item.price * item.quantity).toFixed(2)}</li>`).join('')}
+      </ul>
+      <p><strong>Total:</strong> ₹${total}</p>
+      <p><strong>Coupon:</strong> ${coupon || 'None'}</p>
+    `;
 
-    // Setup nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'furqanshaikh939@gmail.com',
-        pass: 'smdj irys luou kzve', // your app password
-      },
-    });
+    await transporter.sendMail({
+      from: 'furqanshaikh939@gmail.com',
+      to, // Send to the admin email address
+      subject: `New Order Received #${savedOrder.id} - ${deliveryMethod === 'homeDelivery' ? 'For Delivery' : 'For Pickup'}`,
+      html: adminHtml,
+    });
 
-    await transporter.sendMail({
-      from: 'furqanshaikh939@gmail.com',
-      to,
-      subject: '🧾 New Order Received',
-      html,
-    });
+    // Email 2: Send confirmation to Customer
+    if (billingDetails.email) {
+      const customerDeliveryDetailsHtml = deliveryMethod === 'homeDelivery'
+        ? `<p>Your order will be delivered to the following address:</p>
+           <p style="font-family: monospace; background-color: #f4f4f4; padding: 10px; border-radius: 5px;">
+             ${billingDetails.firstName} ${billingDetails.lastName}<br>
+             ${billingDetails.streetAddress1}<br>
+             ${billingDetails.streetAddress2 || ''}${billingDetails.streetAddress2 ? '<br>' : ''}
+             ${billingDetails.city}, ${billingDetails.state} - ${billingDetails.pin}<br>
+             ${billingDetails.country}
+           </p>`
+        // Updated to include selected store name and date
+        : `<p>Your order will be available for <strong>in-store pickup</strong> at our <strong>${store}</strong> location on <strong>${selectedDate}</strong>.</p>
+           <p>We'll send you another email notification as soon as it's ready for collection.</p>`
 
-    return res.status(200).json({
-      success: true,
-      message: '✅ Order placed and email sent successfully',
-      data: savedOrder,
-    });
-  } catch (error) {
-    console.error('❌ Order/email error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+      const customerHtml = `
+        <div style="font-family: Arial, sans-serif; color: #333;">
+          <h2>✅ Your Order is Confirmed!</h2>
+          <p>Hi ${billingDetails.firstName},</p>
+          <p>Thank you for your order with us. We've received it and are getting it ready for you.</p>
+          <p><strong>Order ID:</strong> ${savedOrder.id}</p>
+          <p><strong>Order Date:</strong> ${new Date(savedOrder.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+          <hr>
+          <h3>Order Summary</h3>
+          <table style="width:100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="border-bottom: 2px solid #ddd; padding: 8px; text-align: left;">Item</th>
+                <th style="border-bottom: 2px solid #ddd; padding: 8px; text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cartItems.map(item => `
+                <tr>
+                  <td style="border-bottom: 1px solid #ddd; padding: 8px;">${item.name} (× ${item.quantity})</td>
+                  <td style="border-bottom: 1px solid #ddd; padding: 8px; text-align: right;">₹${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style="padding: 8px; text-align: right;"><strong>Total:</strong></td>
+                <td style="padding: 8px; text-align: right;"><strong>₹${total}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+          <hr>
+          <h3>Delivery Information</h3>
+          ${customerDeliveryDetailsHtml}
+          <p>We'll keep you updated on the status of your order.</p>
+          <p>Thanks again for your purchase!</p>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: '"Your Store Name" <furqanshaikh939@gmail.com>',
+        to: billingDetails.email,
+        subject: `Your Order Confirmation #${savedOrder.id}`,
+        html: customerHtml,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: '✅ Order placed and emails sent successfully',
+      data: savedOrder,
+    });
+  } catch (error) {
+    // This is the key change. We now log the full error object as a string.
+    console.error('❌ Order/email error:', JSON.stringify(error, null, 2));
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
+
 
 router.get('/', verifyToken, async (req, res) => {
   try {

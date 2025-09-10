@@ -910,43 +910,58 @@ const getAllCategory = async (req, res) => {
   }
 };
 
-const createCategory = async (req, res) => {
+const createCategories = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { categories } = req.body;
 
     // Basic validation
-    if (!name || name.trim() === "") {
-      return res.status(400).json({ message: "Category name is required" });
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ message: "Categories array is required" });
     }
 
-    // Check if category already exists
-    const existingCategory = await prisma.category.findUnique({
-      where: { name },
+    // Trim and remove duplicates in request
+    const uniqueCategories = [...new Set(categories.map(c => c.trim()))];
+
+    // Find existing categories
+    const existing = await prisma.category.findMany({
+      where: {
+        name: { in: uniqueCategories },
+      },
+      select: { name: true },
     });
 
-    if (existingCategory) {
-      return res.status(409).json({ message: "Category already exists" });
+    const existingNames = existing.map(c => c.name);
+
+    // Filter only new categories
+    const newCategories = uniqueCategories.filter(
+      name => !existingNames.includes(name)
+    );
+
+    if (newCategories.length === 0) {
+      return res.status(409).json({ message: "All categories already exist" });
     }
 
-    // Create category
-    const category = await prisma.category.create({
-      data: {
-        name: name.trim(),
-      },
+    // Bulk insert
+    const created = await prisma.category.createMany({
+      data: newCategories.map(name => ({ name })),
+      skipDuplicates: true, // safety
     });
 
     res.status(201).json({
-      message: "Category created successfully",
-      category,
+      message: "Categories created successfully",
+      createdCount: created.count,
+      skipped: existingNames,
     });
   } catch (error) {
-    console.error("Error creating category:", error);
-    res.status(500).json({ message: "Failed to create category" });
+    console.error("Error creating categories:", error);
+    res.status(500).json({ message: "Failed to create categories" });
   }
 };
 
+
+
 module.exports = {
-  createCategory,
+  createCategories,
   getAllCategory,
   updateCart,
   deleteFromCart,
