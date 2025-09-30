@@ -29,9 +29,11 @@ const verifyAdminOrSuperAdmin = require('../middleware/verifyAdminOrSuperAdmin')
 const router = Router();
 
 // ✅ Public Product Routes
-router.get('/all', getAllProducts);
+// This route now supports query params for filters
+router.get('/', getAllProducts); // <-- main filter route
+router.get('/all', getAllProducts); // optional legacy route
 router.get('/categories', getAllCategory);
-router.post('/categories', createCategories);
+router.post('/categories', verifyAdminOrSuperAdmin, createCategories);
 
 // ✅ Public Accessory Routes
 router.get('/accessories', getAllAccessories);
@@ -60,7 +62,7 @@ router.patch('/cart/update/:cartItemId', verifyToken, updateCart);
 // ✅ Place Order
 // router.post('/order', verifyToken, placeOrder);
 
-// ✅ Get Single Product (keep at bottom to avoid route conflicts)
+// ✅ Get Single Product (keep at bottom)
 router.get('/:id', getProductById);
 
 module.exports = router;

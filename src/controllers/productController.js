@@ -81,9 +81,11 @@ const createProduct = async (req, res) => {
   }
 
   try {
+    const finalName = boxpack === false ? `${name} (Unboxed)` : name;
+
     const newProduct = await prisma.product.create({
       data: {
-        name,
+        name: finalName,
         description,
         actualPrice,
         sellingPrice,
@@ -103,7 +105,7 @@ const createProduct = async (req, res) => {
         images: {
           create: images.map((img) => ({
             url: img.url,
-            alt: img.alt || name,
+            alt: img.alt || finalName,
           })),
         },
       },
@@ -121,6 +123,7 @@ const createProduct = async (req, res) => {
 };
 
 
+
 // Update product (including images)
 const updateProduct = async (req, res) => {
   const { id } = req.params;
@@ -133,7 +136,7 @@ const updateProduct = async (req, res) => {
     stock,
     images = [],
     boxpack,
-    brand 
+    brand
   } = req.body;
 
   try {
@@ -142,15 +145,28 @@ const updateProduct = async (req, res) => {
       return res.status(400).json({ error: 'Invalid product ID' });
     }
 
+    // Adjust name based on boxpack value
+    let finalName = name;
+
+    if (boxpack === false) {
+      // Add "(Unboxed)" if not already there
+      if (!finalName.includes("(Unboxed)")) {
+        finalName = `${finalName} (Unboxed)`;
+      }
+    } else if (boxpack === true) {
+      // Remove "(Unboxed)" if present
+      finalName = finalName.replace(/\s*\(Unboxed\)$/, "");
+    }
+
     // Update main product fields
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: {
-        name,
+        name: finalName,
         description,
         actualPrice,
         sellingPrice,
-        brand, // <-- And pass it here
+        brand,
         boxpack,
         stock,
         // Clear and replace categories
@@ -171,7 +187,7 @@ const updateProduct = async (req, res) => {
       const imagesToCreate = images.map((img) => ({
         productId,
         url: img.url,
-        alt: img.alt || name,
+        alt: img.alt || finalName,
       }));
       await prisma.productImage.createMany({ data: imagesToCreate });
     }
@@ -191,6 +207,7 @@ const updateProduct = async (req, res) => {
     res.status(500).json({ error: 'Failed to update product', details: error.message });
   }
 };
+
 // Delete product and its images
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
@@ -496,7 +513,7 @@ const updateAccessory = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid accessory ID' });
+      return res.status(400).json({ success: false, message: "Invalid accessory ID" });
     }
 
     const {
@@ -508,10 +525,10 @@ const updateAccessory = async (req, res) => {
       compatibility,
       boxpack,
       stock,
-      categories = [] // Expecting an array of category names
+      images = [],      // Expecting array of { url, alt }
+      categoryIds = []  // ✅ Expecting array of category IDs
     } = req.body;
 
-    // Update accessory and connect categories
     const accessory = await prisma.accessory.update({
       where: { id },
       data: {
@@ -524,11 +541,18 @@ const updateAccessory = async (req, res) => {
         boxpack,
         stock,
         updatedAt: new Date(),
+
+        // ✅ Update categories by IDs
         categories: {
-          set: [], // clear existing relations
-          connectOrCreate: categories.map((cat) => ({
-            where: { name: cat },
-            create: { name: cat },
+          set: categoryIds.map((catId) => ({ id: catId })),
+        },
+
+        // ✅ Update images (simple approach: clear & re-set)
+        images: {
+          deleteMany: {}, // remove existing images
+          create: images.map((img) => ({
+            url: img.url,
+            alt: img.alt,
           })),
         },
       },
@@ -540,10 +564,17 @@ const updateAccessory = async (req, res) => {
 
     res.json({ success: true, data: accessory });
   } catch (error) {
-    console.error('❌ Error updating accessory:', error);
-    res.status(500).json({ success: false, message: 'Failed to update accessory', error: error.message });
+    console.error("❌ Error updating accessory:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to update accessory",
+        error: error.message,
+      });
   }
 };
+
 
 
 // DELETE Accessory

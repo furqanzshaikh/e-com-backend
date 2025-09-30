@@ -97,8 +97,8 @@ model AccessoryImage {
 model Part {
   id        Int           @id @default(autoincrement())
   name      String
-  type      String
   category  String
+  subcategory     String
   price     Float
   stock     Int           @default(0)
   userId    Int
@@ -195,4 +195,12 @@ model CustomBuild {
   buildName  String
   components Json     // store selectedComponents from frontend
   createdAt  DateTime @default(now())
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  orderId   String
+  paymentId String
+  status    String
+  createdAt DateTime @default(now())
 }

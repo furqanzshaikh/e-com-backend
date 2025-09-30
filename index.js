@@ -5,7 +5,7 @@ const userRouter = require('./src/routes/userRouter');
 const productRouter = require('./src/routes/productRouter');
 const buildRouter = require('./src/routes/customBuildRoutes');
 const partsRouter = require('./src/routes/partRoutes');
-// const accessoryRouter = require('./src/routes/accessoryRouter');
+const paymentRouter = require("./src/routes/paymentRouter");
 const orderRoutes = require('./src/controllers/orderController');
 const searchController = require('./src/controllers/searchController');
 const authRouter = require('./src/routes/authRouter');
@@ -36,6 +36,7 @@ app.use('/parts', partsRouter);
 app.use('/custom-build', buildRouter);
 app.use('/search', searchController);
 
+app.use("/payment", paymentRouter);
 
 // Start server
 app.listen(PORT, () => {

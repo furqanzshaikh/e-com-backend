@@ -12,36 +12,48 @@ const isSuperAdmin = async (userId) => {
 /**
  * Create a new part (SUPER_ADMIN only)
  */
+
 exports.createPart = async (req, res) => {
   const userId = req.userId;
-  const { name, type, price, category, stock = 0 } = req.body;
+  const { name, category, subcategory = '', price, stock = 0, images = [] } = req.body;
 
   try {
     if (!(await isSuperAdmin(userId))) {
-      return res.status(403).json({ error: 'Forbidden: Only SUPER_ADMIN can create parts' });
+      return res
+        .status(403)
+        .json({ error: "Forbidden: Only SUPER_ADMIN can create parts" });
     }
 
     const newPart = await prisma.part.create({
       data: {
         name,
-        type,
-        price,
         category,
+        subcategory,
+        price,
         stock,
         userId,
+        images: {
+          create: images.map((img) => ({
+            url: img.url,
+            alt: img.alt || "",
+          })),
+        },
       },
+      include: { images: true }, // return with images
     });
 
     res.status(201).json(newPart);
   } catch (error) {
-    console.error('❌ Error creating part:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error("❌ Error creating part:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
+
 
 /**
  * Get all parts (open/public or for all roles)
  */
+
 exports.getAllParts = async (req, res) => {
   try {
     const { category, brand } = req.query;
@@ -65,6 +77,7 @@ exports.getAllParts = async (req, res) => {
 /**
  * Get part by ID (open/public)
  */
+
 exports.getPartById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -132,39 +145,26 @@ exports.updatePart = async (req, res) => {
     }
 
     const { id } = req.params;
-    const {
-      name,
-      category,
-      brand,
-      description,
-      actualPrice,
-      sellingPrice,
-      compatibility,
-      stock,
-      boxpack,
-    } = req.body;
+    const { name, category, subcategory, price, stock } = req.body;
 
     const updatedPart = await prisma.part.update({
       where: { id: parseInt(id) },
       data: {
         name,
         category,
-        brand,
-        description,
-        actualPrice,
-        sellingPrice,
-        compatibility,
+        subcategory,
+        price,
         stock,
-        boxpack,
       },
     });
 
     res.status(200).json(updatedPart);
   } catch (error) {
-    console.error('Error updating part:', error);
+    console.error('❌ Error updating part:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 /**
  * Add multiple parts (SUPER_ADMIN only)
@@ -174,24 +174,29 @@ exports.addMultipleParts = async (req, res) => {
   const parts = req.body.parts;
 
   try {
+    // Only SUPER_ADMIN can bulk add parts
     if (!(await isSuperAdmin(userId))) {
-      return res.status(403).json({ error: 'Forbidden: Only SUPER_ADMIN can bulk add parts' });
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: Only SUPER_ADMIN can bulk add parts' });
     }
 
     for (const part of parts) {
-      const { name, type, category, price, stock, images = [] } = part;
+      const { name, category, subcategory = '', price, stock = 0, images = [] } = part;
 
+      // Create the part
       const newPart = await prisma.part.create({
         data: {
           name,
-          type,
           category,
+          subcategory,
           price,
           stock,
           userId,
         },
       });
 
+      // Create images if provided
       if (images.length > 0) {
         await prisma.partImage.createMany({
           data: images.map((img) => ({
@@ -209,6 +214,8 @@ exports.addMultipleParts = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
 /**
  * Delete part by ID (SUPER_ADMIN only)
