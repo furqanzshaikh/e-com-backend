@@ -1,7 +1,7 @@
 const { PrismaClient } = require("./../generated/prisma");
 const prisma = new PrismaClient();
 
-const products = require('../data/products_with_brands_fixed.json');
+const products = require('../data/boxed_products.json');
 
 async function main() {
   console.log("🌱 Starting database seeding (Boxed Products)...");
