@@ -22,7 +22,7 @@ async function main() {
         name: 'Super Admin',
         email,
         password: hashedPassword,
-        role: 'superadmin',
+        role: 'SUPPER_ADMIN',
       },
     });
     console.log('🎉 Super admin created successfully!');

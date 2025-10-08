@@ -18,7 +18,22 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 // ✅ Proper CORS setup for credentials
-app.use(cors());
+const allowedOrigins = [
+  'https://e-com-three-indol.vercel.app', // frontend deployed URL
+  'http://localhost:3000' // local dev
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow requests like Postman with no origin
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true // allow cookies/auth headers
+}));
 app.use(cookieParser());
 
 app.use(express.json());
