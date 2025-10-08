@@ -38,6 +38,10 @@ app.use('/search', searchController);
 
 app.use("/payment", paymentRouter);
 
+app.get('/', (req, res) => {
+  res.send('Hello World');
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
