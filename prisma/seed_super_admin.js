@@ -1,15 +1,17 @@
-// prisma/seedSuperAdmin.js
+
+require('dotenv').config({ path: '../.env' });
 const { PrismaClient } = require("./../generated/prisma");
 const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log("11111111111111111111111111111111111111111111111",process.env.DATABASE_URL)
   const email = 'superadmin@example.com';
-  const password = 'SuperAdmin@123'; // ⚠️ Change this or load from env
+  const password = 'SuperAdmin@123'; 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Check if super admin already exists
+  
   const existingAdmin = await prisma.user.findUnique({
     where: { email },
   });
@@ -22,7 +24,7 @@ async function main() {
         name: 'Super Admin',
         email,
         password: hashedPassword,
-        role: 'SUPPER_ADMIN',
+        role: 'SUPER_ADMIN',
       },
     });
     console.log('🎉 Super admin created successfully!');

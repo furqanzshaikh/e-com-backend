@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('./generated/prisma');
@@ -10,6 +11,7 @@ const orderRoutes = require('./src/controllers/orderController');
 const searchController = require('./src/controllers/searchController');
 const authRouter = require('./src/routes/authRouter');
 const cookieParser = require('cookie-parser');
+
 
 
 const app = express();
@@ -55,6 +57,7 @@ app.get('/', (req, res) => {
 });
 
 // Start server
+console.log(process.env.DATABASE_URL)
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

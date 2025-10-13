@@ -34,7 +34,7 @@ exports.createPart = async (req, res) => {
         userId,
         images: {
           create: images.map((img) => ({
-            url: img.url,
+            url: img.url ? img.url : "https://5.imimg.com/data5/UL/FQ/MY-30821/laptop-cpu-500x500.jpg",
             alt: img.alt || "",
           })),
         },
