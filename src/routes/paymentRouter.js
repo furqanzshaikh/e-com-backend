@@ -3,6 +3,7 @@ const axios = require("axios");
 const crypto = require("crypto");
 const { PrismaClient } = require("../../generated/prisma");
 const jwt = require("jsonwebtoken");
+
 const router = express.Router();
 const prisma = global.prisma || new PrismaClient();
 
@@ -11,6 +12,7 @@ const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_ENV = process.env.CASHFREE_ENV || "sandbox";
 const API_VERSION = "2023-08-01";
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 // Cashfree API endpoint
 const CASHFREE_BASE_URL =
@@ -18,6 +20,7 @@ const CASHFREE_BASE_URL =
     ? "https://sandbox.cashfree.com/pg/orders"
     : "https://api.cashfree.com/pg/orders";
 
+// Cashfree headers
 const CASHFREE_HEADERS = {
   "x-client-id": CASHFREE_APP_ID,
   "x-client-secret": CASHFREE_SECRET_KEY,
@@ -35,27 +38,40 @@ function verifyWebhookSignature(signature, rawBody, secret) {
   return computedSignature === signature;
 }
 
-// --- Create Order ---
+// --- 1. Create Order ---
 router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
 
-    if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
-    if (typeof amount !== "number" || amount <= 0) return res.status(400).json({ error: "Invalid or missing total amount." });
+    if (!deliveryMethod)
+      return res.status(400).json({ error: "deliveryMethod is required" });
+
+    if (typeof amount !== "number" || amount <= 0)
+      return res.status(400).json({ error: "Invalid or missing total amount." });
 
     // --- Decode JWT token ---
-    const token = req.headers.authorization?.split(" ")[1]; // Expect: Bearer <token>
-    if (!token) return res.status(401).json({ error: "Authorization token is required" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.warn("Missing or malformed Authorization header");
+      return res.status(401).json({ error: "Authorization token is required" });
+    }
 
+    const token = authHeader.split(" ")[1];
     let decoded;
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
       console.log("Decoded token:", decoded);
     } catch (err) {
+      console.error("JWT verification error:", err.message);
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    const userId = decoded.userId; // Make sure your JWT payload contains userId
+    const userId = decoded.userId;
+    if (!userId) {
+      console.warn("Token payload missing userId:", decoded);
+      return res.status(401).json({ error: "Token does not contain userId" });
+    }
 
     // 1️⃣ Create order in DB
     const order = await prisma.order.create({
@@ -69,7 +85,7 @@ router.post("/create-order", async (req, res) => {
 
     // 2️⃣ Cashfree order ID & return URL
     const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const returnUrl = `${process.env.FRONTEND_URL}/payment-status?order_id=${cashfreeOrderId}&dbOrderId=${order.id}`;
+    const returnUrl = `${FRONTEND_URL}/payment-status?order_id=${cashfreeOrderId}&dbOrderId=${order.id}`;
 
     // 3️⃣ Create payment record
     await prisma.payment.create({
@@ -83,7 +99,6 @@ router.post("/create-order", async (req, res) => {
 
     // 4️⃣ Call Cashfree API
     const cashfreeAmountString = amount.toFixed(2);
-
     const response = await axios.post(
       CASHFREE_BASE_URL,
       {
@@ -114,7 +129,7 @@ router.post("/create-order", async (req, res) => {
   }
 });
 
-// --- Webhook: Cashfree → Backend ---
+// --- 2. Webhook: Cashfree → Backend ---
 router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   try {
     const signature = req.headers["x-webhook-signature"];
@@ -156,7 +171,7 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
   }
 });
 
-// --- Check final order status ---
+// --- 3. Check final order status ---
 router.get("/check-status/:orderId", async (req, res) => {
   const { orderId } = req.params;
 
