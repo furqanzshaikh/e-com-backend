@@ -12,7 +12,7 @@ const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_ENV = process.env.CASHFREE_ENV || "sandbox";
 const API_VERSION = "2023-08-01";
 
-const BASE_URL = "http://localhost:3000"
+const BASE_URL = process.env.BASE_URL
   CASHFREE_ENV === "sandbox"
     ? "https://sandbox.cashfree.com/pg/orders"
     : "https://api.cashfree.com/pg/orders";
