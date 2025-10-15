@@ -15,6 +15,12 @@ enum Role {
   SUPER_ADMIN
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -156,6 +162,7 @@ model Order {
   user           User         @relation(fields: [userId], references: [id])
   userId         Int
   items          OrderItem[]
+  payments       Payment[]    // <-- add this back-relation
   totalAmount    Float
   deliveryMethod String
   pickupDate     DateTime?    // optional, only used for storeVisit
@@ -198,9 +205,14 @@ model CustomBuild {
 }
 
 model Payment {
-  id        Int      @id @default(autoincrement())
-  orderId   String
-  paymentId String
-  status    String
-  createdAt DateTime @default(now())
+  id             Int           @id @default(autoincrement())
+  order          Order         @relation(fields: [orderId], references: [id])
+  orderId        String
+  paymentId      String?
+  status         PaymentStatus
+  amount         Decimal?
+  currency       String        @default("INR")
+  paymentMethod  String?
+  createdAt      DateTime      @default(now())
+  rawWebhookData String?
 }

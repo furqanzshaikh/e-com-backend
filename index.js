@@ -1,63 +1,74 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { PrismaClient } = require('./generated/prisma');
+
 const userRouter = require('./src/routes/userRouter');
 const productRouter = require('./src/routes/productRouter');
 const buildRouter = require('./src/routes/customBuildRoutes');
 const partsRouter = require('./src/routes/partRoutes');
-const paymentRouter = require("./src/routes/paymentRouter");
-const orderRoutes = require('./src/controllers/orderController');
+const paymentRouter = require('./src/routes/paymentRouter'); // Cashfree router
+const orderRouter = require('./src/controllers/orderController'); // rename controller to router
 const searchController = require('./src/controllers/searchController');
 const authRouter = require('./src/routes/authRouter');
-const cookieParser = require('cookie-parser');
 
-
+let prisma;
+if (!global.prisma) {
+  global.prisma = new PrismaClient();
+}
+prisma = global.prisma;
 
 const app = express();
-
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-// ✅ Proper CORS setup for credentials
 const allowedOrigins = [
-  'https://e-com-three-indol.vercel.app', // frontend deployed URL
-  'http://localhost:3000' // local dev
+  'https://e-com-three-indol.vercel.app',
+  'http://localhost:3000',
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow requests like Postman with no origin
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (!origin) return callback(null, true);
+    if (!allowedOrigins.includes(origin)) {
+      return callback(new Error('The CORS policy does not allow access from the specified Origin.'), false);
     }
     return callback(null, true);
   },
-  credentials: true // allow cookies/auth headers
+  credentials: true,
 }));
+
 app.use(cookieParser());
+app.use(express.json()); 
 
-app.use(express.json());
-
-// Register routes
+// --- Routes ---
+app.use('/payment/cashfree', paymentRouter);
 app.use('/users', userRouter);
 app.use('/products', productRouter);
-// app.use('/accessory', accessoryRouter);
 app.use(authRouter);
-app.use('/order', orderRoutes);
+app.use('/order', orderRouter);
 app.use('/parts', partsRouter);
 app.use('/custom-build', buildRouter);
 app.use('/search', searchController);
 
-app.use("/payment", paymentRouter);
 
+// --- Root route ---
 app.get('/', (req, res) => {
-  res.send('Hello World');
+  res.json({ status: 'API running', version: '1.0' });
 });
 
-// Start server
-console.log(process.env.DATABASE_URL)
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// --- Global error handler ---
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.stack || err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
+// --- Start server ---
+app.listen(PORT, async () => {
+  try {
+    await prisma.$connect();
+    console.log(`Server running on http://localhost:${PORT}`);
+  } catch (err) {
+    console.error('Prisma connection error:', err);
+  }
 });
