@@ -2,7 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
 const { PrismaClient } = require("../../generated/prisma");
-const  jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const router = express.Router();
 const prisma = global.prisma || new PrismaClient();
 
@@ -12,7 +12,8 @@ const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_ENV = process.env.CASHFREE_ENV || "sandbox";
 const API_VERSION = "2023-08-01";
 
-const BASE_URL = process.env.BASE_URL
+// Cashfree API endpoint
+const CASHFREE_BASE_URL =
   CASHFREE_ENV === "sandbox"
     ? "https://sandbox.cashfree.com/pg/orders"
     : "https://api.cashfree.com/pg/orders";
@@ -34,24 +35,17 @@ function verifyWebhookSignature(signature, rawBody, secret) {
   return computedSignature === signature;
 }
 
-
+// --- Create Order ---
 router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
 
-    if (!deliveryMethod) {
-      return res.status(400).json({ error: "deliveryMethod is required" });
-    }
+    if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
+    if (typeof amount !== "number" || amount <= 0) return res.status(400).json({ error: "Invalid or missing total amount." });
 
-    if (typeof amount !== 'number' || amount <= 0) {
-      return res.status(400).json({ error: "Invalid or missing total amount." });
-    }
-
-    // --- Decode token once ---
+    // --- Decode JWT token ---
     const token = req.headers.authorization?.split(" ")[1]; // Expect: Bearer <token>
-    if (!token) {
-      return res.status(401).json({ error: "Authorization token is required" });
-    }
+    if (!token) return res.status(401).json({ error: "Authorization token is required" });
 
     let decoded;
     try {
@@ -61,7 +55,7 @@ router.post("/create-order", async (req, res) => {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    const userId = decoded.userId; // ✅ matches your JWT payload
+    const userId = decoded.userId; // Make sure your JWT payload contains userId
 
     // 1️⃣ Create order in DB
     const order = await prisma.order.create({
@@ -81,7 +75,7 @@ router.post("/create-order", async (req, res) => {
     await prisma.payment.create({
       data: {
         orderId: order.id,
-        amount: amount,
+        amount,
         status: "PENDING",
         paymentId: null,
       },
@@ -91,7 +85,7 @@ router.post("/create-order", async (req, res) => {
     const cashfreeAmountString = amount.toFixed(2);
 
     const response = await axios.post(
-      BASE_URL,
+      CASHFREE_BASE_URL,
       {
         order_id: cashfreeOrderId,
         order_amount: cashfreeAmountString,
@@ -107,6 +101,7 @@ router.post("/create-order", async (req, res) => {
       { headers: CASHFREE_HEADERS }
     );
 
+    // ✅ Return payment session info to frontend
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
@@ -114,14 +109,12 @@ router.post("/create-order", async (req, res) => {
     });
   } catch (error) {
     console.error("Full error creating order:", error);
-    if (error.response?.data) {
-      console.error("Cashfree API response:", error.response.data);
-    }
+    if (error.response?.data) console.error("Cashfree API response:", error.response.data);
     res.status(500).json({ error: error.message || "Order creation failed" });
   }
 });
 
-// --- 2. Webhook: Cashfree → Backend ---
+// --- Webhook: Cashfree → Backend ---
 router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   try {
     const signature = req.headers["x-webhook-signature"];
@@ -135,7 +128,6 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
 
     if (event.type === "PAYMENT_SUCCESS") {
       const { order, payment } = event.data;
-
       await prisma.payment.update({
         where: { orderId: order.order_id },
         data: {
@@ -151,28 +143,26 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
 
     if (event.type === "PAYMENT_FAILED") {
       const { order } = event.data;
-
       await prisma.payment.update({
         where: { orderId: order.order_id },
         data: { status: "FAILED", rawWebhookData: JSON.stringify(event) },
       });
     }
 
-    // Respond 200 to acknowledge receipt
     res.sendStatus(200);
   } catch (error) {
     console.error("Webhook error:", error);
-    res.sendStatus(200); // Prevent repeated retries
+    res.sendStatus(200); // Prevent retries
   }
 });
 
-// --- 3. Check final order status from Cashfree ---
+// --- Check final order status ---
 router.get("/check-status/:orderId", async (req, res) => {
   const { orderId } = req.params;
 
   try {
-    const response = await axios.get(`${BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
-    const cashfreeStatus = response.data.order_status; // e.g., PAID, ACTIVE, FLAGGED
+    const response = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
+    const cashfreeStatus = response.data.order_status;
 
     if (cashfreeStatus === "PAID" || cashfreeStatus === "ACTIVE") {
       await prisma.payment.updateMany({
