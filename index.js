@@ -52,6 +52,7 @@ app.use('/custom-build', buildRouter);
 app.use('/search', searchController);
 
 
+
 // --- Root route ---
 app.get('/', (req, res) => {
   res.json({ status: 'API running', version: '1.0' });
