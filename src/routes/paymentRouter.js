@@ -43,35 +43,25 @@ router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
 
-    if (!deliveryMethod)
-      return res.status(400).json({ error: "deliveryMethod is required" });
-
+    if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
     if (typeof amount !== "number" || amount <= 0)
       return res.status(400).json({ error: "Invalid or missing total amount." });
 
     // --- Decode JWT token ---
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.warn("Missing or malformed Authorization header");
+    if (!authHeader || !authHeader.startsWith("Bearer "))
       return res.status(401).json({ error: "Authorization token is required" });
-    }
 
     const token = authHeader.split(" ")[1];
     let decoded;
-
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log("Decoded token:", decoded);
     } catch (err) {
-      console.error("JWT verification error:", err.message);
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
     const userId = decoded.userId;
-    if (!userId) {
-      console.warn("Token payload missing userId:", decoded);
-      return res.status(401).json({ error: "Token does not contain userId" });
-    }
+    if (!userId) return res.status(401).json({ error: "Token does not contain userId" });
 
     // 1️⃣ Create order in DB
     const order = await prisma.order.create({
@@ -99,7 +89,7 @@ router.post("/create-order", async (req, res) => {
 
     // 4️⃣ Call Cashfree API
     const cashfreeAmountString = amount.toFixed(2);
-    const response = await axios.post(
+    const cfResponse = await axios.post(
       CASHFREE_BASE_URL,
       {
         order_id: cashfreeOrderId,
@@ -116,11 +106,17 @@ router.post("/create-order", async (req, res) => {
       { headers: CASHFREE_HEADERS }
     );
 
-    // ✅ Return payment session info to frontend
+    // ✅ IMPORTANT: use exactly the payment_session_id returned
+    const paymentSessionId = cfResponse.data?.payment_session_id;
+    if (!paymentSessionId) {
+      console.error("Cashfree did not return a session ID:", cfResponse.data);
+      return res.status(500).json({ error: "Failed to create Cashfree payment session" });
+    }
+
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId: response.data.payment_session_id,
+      paymentSessionId,
     });
   } catch (error) {
     console.error("Full error creating order:", error);
@@ -129,17 +125,15 @@ router.post("/create-order", async (req, res) => {
   }
 });
 
-// --- 2. Webhook: Cashfree → Backend ---
+// --- 2. Webhook ---
 router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   try {
     const signature = req.headers["x-webhook-signature"];
     const rawBody = req.body.toString();
     const event = JSON.parse(rawBody);
 
-    if (!verifyWebhookSignature(signature, rawBody, CASHFREE_SECRET_KEY)) {
-      console.warn("Webhook signature mismatch. Rejecting request.");
+    if (!verifyWebhookSignature(signature, rawBody, CASHFREE_SECRET_KEY))
       return res.status(403).send("Signature verification failed");
-    }
 
     if (event.type === "PAYMENT_SUCCESS") {
       const { order, payment } = event.data;
@@ -167,17 +161,16 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
     res.sendStatus(200);
   } catch (error) {
     console.error("Webhook error:", error);
-    res.sendStatus(200); // Prevent retries
+    res.sendStatus(200); // prevent retries
   }
 });
 
 // --- 3. Check final order status ---
 router.get("/check-status/:orderId", async (req, res) => {
   const { orderId } = req.params;
-
   try {
-    const response = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
-    const cashfreeStatus = response.data.order_status;
+    const cfStatus = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
+    const cashfreeStatus = cfStatus.data.order_status;
 
     if (cashfreeStatus === "PAID" || cashfreeStatus === "ACTIVE") {
       await prisma.payment.updateMany({
@@ -193,7 +186,7 @@ router.get("/check-status/:orderId", async (req, res) => {
       });
     }
 
-    res.json({ status: cashfreeStatus, data: response.data });
+    res.json({ status: cashfreeStatus, data: cfStatus.data });
   } catch (error) {
     console.error("Error checking order status:", error.response?.data || error);
     res.status(500).json({ error: "Could not verify payment status" });
