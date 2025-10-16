@@ -75,7 +75,7 @@ router.post("/create-order", async (req, res) => {
 
     // 2️⃣ Cashfree order ID & return URL
     const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const returnUrl = `${FRONTEND_URL}/payment-status?order_id=${cashfreeOrderId}&dbOrderId=${order.id}`;
+    const returnUrl = `${FRONTEND_URL}/orders`;
 
     // 3️⃣ Create payment record
     await prisma.payment.create({
@@ -116,7 +116,7 @@ router.post("/create-order", async (req, res) => {
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId,
+      paymentSessionId
     });
   } catch (error) {
     console.error("Full error creating order:", error);

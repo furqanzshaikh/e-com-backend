@@ -197,7 +197,97 @@ router.post('/send-confirmation', verifyToken, async (req, res) => {
   }
 });
 
+router.post('/contact-us', async (req, res) => {
+  try {
+    const { name, email, phone, message } = req.body;
 
+    if (!name || !email || !phone || !message) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Ensure you have a recipient email
+    const recipientEmail = "furqanshaikh329@gmail.com" || "youradminemail@gmail.com";
+    if (!recipientEmail) {
+      return res.status(500).json({ error: "Recipient email not configured" });
+    }
+
+    // Configure Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+  user: 'furqanshaikh939@gmail.com',
+        pass: 'smdj irys luou kzve',
+      },
+    });
+
+    // Email content
+    const mailOptions = {
+      from: `"${name}" <${email}>`,
+      to: recipientEmail, // <— This must be defined!
+      subject: `📩 New Contact Form Submission from ${name}`,
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p><strong>Message:</strong><br/> ${message}</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.status(200).json({ success: true, message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("❌ Contact form error:", error);
+    return res.status(500).json({ error: "Failed to send message" });
+  }
+});
+
+router.post("/contact-us-form", async (req, res) => {
+  try {
+    const { to, formData } = req.body;
+
+    if (!to || !formData) {
+      return res.status(400).json({ error: "Invalid request data" });
+    }
+
+    const { fullName, email, phone, deviceBrand, issueType, description, selectedIssueFromIcons, contactMethod, uploadedFiles } = formData;
+
+    // Configure Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: 'furqanshaikh939@gmail.com',
+        pass: 'smdj irys luou kzve',
+      },
+    });
+
+    const mailHtml = `
+      <h2>New Contact Form Submission</h2>
+      <p><strong>Name:</strong> ${fullName}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Phone:</strong> ${phone}</p>
+      <p><strong>Device Brand:</strong> ${deviceBrand}</p>
+      <p><strong>Issue Type:</strong> ${issueType}</p>
+      <p><strong>Selected Issue:</strong> ${selectedIssueFromIcons}</p>
+      <p><strong>Description:</strong> ${description}</p>
+      <p><strong>Preferred Contact Method:</strong> ${contactMethod}</p>
+      ${uploadedFiles && uploadedFiles.length ? `<p><strong>Uploaded Files:</strong> ${uploadedFiles.join(", ")}</p>` : ""}
+    `;
+
+    await transporter.sendMail({
+      from: email,
+      to,
+      subject: `Contact Form Submission from ${fullName}`,
+      html: mailHtml,
+    });
+
+    return res.status(200).json({ message: "Email sent successfully" });
+  } catch (error) {
+    console.error("❌ Contact form error:", error);
+    return res.status(500).json({ error: "Failed to send email" });
+  }
+});
 
 router.get('/', verifyToken, async (req, res) => {
   try {
