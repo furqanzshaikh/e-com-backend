@@ -1,31 +1,34 @@
-// pages/api/payment/cashfree.js
-import nc from "next-connect";
-import express from "express";
-import axios from "axios";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { PrismaClient } from "@prisma/client";
+const express = require("express");
+const axios = require("axios");
+const crypto = require("crypto");
+const { PrismaClient } = require("../../generated/prisma");
+const jwt = require("jsonwebtoken");
 
+const router = express.Router();
 const prisma = global.prisma || new PrismaClient();
-const handler = nc().use(express.json());
 
-// --- Config ---
+// --- Configuration ---
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_ENV = process.env.CASHFREE_ENV || "sandbox";
+const API_VERSION = "2023-08-01";
 const FRONTEND_URL = process.env.FRONTEND_URL;
+
+// Cashfree API endpoint
 const CASHFREE_BASE_URL =
   CASHFREE_ENV === "sandbox"
     ? "https://sandbox.cashfree.com/pg/orders"
-    : "https://www.cashfree.com/pg/orders";
+    :  "https://www.cashfree.com/pg/orders";
+
+// Cashfree headers
 const CASHFREE_HEADERS = {
   "x-client-id": CASHFREE_APP_ID,
   "x-client-secret": CASHFREE_SECRET_KEY,
+  "x-api-version": API_VERSION,
   "Content-Type": "application/json",
 };
-const API_VERSION = "2023-08-01";
 
-// --- Helper: verify webhook signature ---
+// --- Verify webhook signature ---
 function verifyWebhookSignature(signature, rawBody, secret) {
   if (!signature || !rawBody) return false;
   const computedSignature = crypto
@@ -35,8 +38,8 @@ function verifyWebhookSignature(signature, rawBody, secret) {
   return computedSignature === signature;
 }
 
-// --- POST /create-order ---
-handler.post(async (req, res) => {
+// --- 1. Create Order ---
+router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
 
@@ -44,10 +47,10 @@ handler.post(async (req, res) => {
     if (typeof amount !== "number" || amount <= 0)
       return res.status(400).json({ error: "Invalid or missing total amount." });
 
-    // --- JWT decode ---
+    // --- Decode JWT token ---
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer "))
-      return res.status(401).json({ error: "Authorization token required" });
+    if (!authHeader || !authHeader.startsWith("Bearer "))
+      return res.status(401).json({ error: "Authorization token is required" });
 
     const token = authHeader.split(" ")[1];
     let decoded;
@@ -58,9 +61,9 @@ handler.post(async (req, res) => {
     }
 
     const userId = decoded.userId;
-    if (!userId) return res.status(401).json({ error: "Token missing userId" });
+    if (!userId) return res.status(401).json({ error: "Token does not contain userId" });
 
-    // --- 1️⃣ Create order in DB ---
+    // 1️⃣ Create order in DB
     const order = await prisma.order.create({
       data: {
         user: { connect: { id: userId } },
@@ -70,7 +73,11 @@ handler.post(async (req, res) => {
       },
     });
 
-    // --- 2️⃣ Create payment record ---
+    // 2️⃣ Cashfree order ID & return URL
+    const cashfreeOrderId = `cf_order_${Date.now()}`;
+    const returnUrl = `${FRONTEND_URL}/orders`;
+
+    // 3️⃣ Create payment record
     await prisma.payment.create({
       data: {
         orderId: order.id,
@@ -80,36 +87,46 @@ handler.post(async (req, res) => {
       },
     });
 
-    // --- 3️⃣ Call Cashfree API ---
-    const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const cfPayload = {
-      order_id: cashfreeOrderId,
-      order_amount: amount.toFixed(2),
-      order_currency: "INR",
-      customer_details: {
-        customer_id: `cust_${userId}`,
-        customer_name: customerName || "Guest",
-        customer_email: customerEmail || "guest@example.com",
-        customer_phone: customerPhone || "9999999999",
+    // 4️⃣ Call Cashfree API
+    const cashfreeAmountString = amount.toFixed(2);
+    const cfResponse = await axios.post(
+      CASHFREE_BASE_URL,
+      {
+        order_id: cashfreeOrderId,
+        order_amount: cashfreeAmountString,
+        order_currency: "INR",
+        customer_details: {
+          customer_id: `cust_${userId}`,
+          customer_name: customerName || "Guest",
+          customer_email: customerEmail || "guest@example.com",
+          customer_phone: customerPhone || "9999999999",
+        },
+        order_meta: { return_url: returnUrl },
       },
-      order_meta: { return_url: `${FRONTEND_URL}/orders` },
-    };
+      { headers: CASHFREE_HEADERS }
+    );
 
-    const cfResponse = await axios.post(CASHFREE_BASE_URL, cfPayload, { headers: CASHFREE_HEADERS });
+    // ✅ IMPORTANT: use exactly the payment_session_id returned
     const paymentSessionId = cfResponse.data?.payment_session_id;
-    if (!paymentSessionId) return res.status(500).json({ error: "Cashfree session creation failed" });
+    if (!paymentSessionId) {
+      console.error("Cashfree did not return a session ID:", cfResponse.data);
+      return res.status(500).json({ error: "Failed to create Cashfree payment session" });
+    }
 
-    res.json({ dbOrderId: order.id, cashfreeOrderId, paymentSessionId });
-  } catch (err) {
-    console.error("Create order error:", err.response?.data || err.message);
-    res.status(500).json({ error: err.message || "Order creation failed" });
+    res.json({
+      dbOrderId: order.id,
+      cashfreeOrderId,
+      paymentSessionId
+    });
+  } catch (error) {
+    console.error("Full error creating order:", error);
+    if (error.response?.data) console.error("Cashfree API response:", error.response.data);
+    res.status(500).json({ error: error.message || "Order creation failed" });
   }
 });
 
-// --- POST /webhook ---
-handler.use(express.raw({ type: "application/json" })); // raw body for signature
-
-handler.post("/webhook", async (req, res) => {
+// --- 2. Webhook ---
+router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   try {
     const signature = req.headers["x-webhook-signature"];
     const rawBody = req.body.toString();
@@ -120,7 +137,7 @@ handler.post("/webhook", async (req, res) => {
 
     if (event.type === "PAYMENT_SUCCESS") {
       const { order, payment } = event.data;
-      await prisma.payment.updateMany({
+      await prisma.payment.update({
         where: { orderId: order.order_id },
         data: {
           paymentId: payment.payment_id,
@@ -135,24 +152,23 @@ handler.post("/webhook", async (req, res) => {
 
     if (event.type === "PAYMENT_FAILED") {
       const { order } = event.data;
-      await prisma.payment.updateMany({
+      await prisma.payment.update({
         where: { orderId: order.order_id },
         data: { status: "FAILED", rawWebhookData: JSON.stringify(event) },
       });
     }
 
     res.sendStatus(200);
-  } catch (err) {
-    console.error("Webhook error:", err);
+  } catch (error) {
+    console.error("Webhook error:", error);
     res.sendStatus(200); // prevent retries
   }
 });
 
-// --- GET /check-status/:orderId ---
-handler.get("/check-status/:orderId", async (req, res) => {
+// --- 3. Check final order status ---
+router.get("/check-status/:orderId", async (req, res) => {
+  const { orderId } = req.params;
   try {
-    const { orderId } = req.query;
-
     const cfStatus = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
     const cashfreeStatus = cfStatus.data.order_status;
 
@@ -171,10 +187,10 @@ handler.get("/check-status/:orderId", async (req, res) => {
     }
 
     res.json({ status: cashfreeStatus, data: cfStatus.data });
-  } catch (err) {
-    console.error("Check status error:", err.response?.data || err.message);
+  } catch (error) {
+    console.error("Error checking order status:", error.response?.data || error);
     res.status(500).json({ error: "Could not verify payment status" });
   }
 });
 
-export default handler;
+module.exports = router;
