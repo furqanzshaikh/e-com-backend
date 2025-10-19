@@ -12,7 +12,6 @@ const paymentRouter = require('./src/routes/paymentRouter'); // Cashfree router
 const orderRouter = require('./src/controllers/orderController'); // rename controller to router
 const searchController = require('./src/controllers/searchController');
 const authRouter = require('./src/routes/authRouter');
-const { default: handler } = require('./src/routes/paymentRouter');
 
 let prisma;
 if (!global.prisma) {
@@ -44,7 +43,7 @@ app.use(cookieParser());
 app.use(express.json()); 
 
 // --- Routes ---
-app.use('/payment/cashfree', handler);
+app.use('/payment/cashfree', paymentRouter);
 app.use('/users', userRouter);
 app.use('/products', productRouter);
 app.use(authRouter);
