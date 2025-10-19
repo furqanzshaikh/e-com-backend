@@ -75,7 +75,7 @@ router.post("/create-order", async (req, res) => {
 
     // 2️⃣ Cashfree order ID & return URL
     const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const returnUrl = `${FRONTEND_URL}`;
+    const returnUrl = `${FRONTEND_URL}/orders?order_id=${cashfreeOrderId}`
  
 
     // 3️⃣ Create payment record
