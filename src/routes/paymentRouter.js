@@ -90,20 +90,19 @@ router.post("/create-order", async (req, res) => {
     // 4️⃣ Call Cashfree API
     const cashfreeAmountString = amount.toFixed(2);
     const cfResponse = await axios.post(
-      CASHFREE_BASE_URL,
-      {
-        order_id: cashfreeOrderId,
-        order_amount: cashfreeAmountString,
-        order_currency: "INR",
-        customer_details: {
-          customer_id: `cust_${userId}`,
-          customer_name: customerName || "Guest",
-          customer_email: customerEmail || "guest@example.com",
-          customer_phone: customerPhone || "9999999999",
-        },
-        order_meta: { return_url: returnUrl },
-      },
-      { headers: CASHFREE_HEADERS }
+      console.log("Cashfree request body:", {
+  order_id: cashfreeOrderId,
+  order_amount: cashfreeAmountString,
+  order_currency: "INR",
+  customer_details: {
+    customer_id: `cust_${userId}`,
+    customer_name: customerName || "Guest",
+    customer_email: customerEmail || "guest@example.com",
+    customer_phone: customerPhone || "9999999999",
+  },
+  order_meta: { return_url: returnUrl },
+})
+     
     );
 
     // ✅ IMPORTANT: use exactly the payment_session_id returned
