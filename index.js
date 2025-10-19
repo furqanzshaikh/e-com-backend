@@ -24,6 +24,7 @@ const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'https://e-com-three-indol.vercel.app',
+  'https://maxtechindia.in',
   'http://localhost:3000',
 ];
 
