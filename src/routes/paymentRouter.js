@@ -107,17 +107,17 @@ router.post("/create-order", async (req, res) => {
     const cfResponse = await axios.post(CASHFREE_BASE_URL, cfPayload, { headers: CASHFREE_HEADERS });
 
     // Check payment_session_id
-    const paymentSessionId = cfResponse.data?.payment_session_id;
-    if (!paymentSessionId) {
-      console.error("Cashfree did not return a session ID:", cfResponse.data);
-      return res.status(500).json({ error: "Failed to create Cashfree payment session" });
-    }
+const paymentSessionId = cfResponse.data?.payment_session_id;
+if (!paymentSessionId) {
+  console.error("Cashfree did not return a session ID:", cfResponse.data);
+  return res.status(500).json({ error: "Failed to create Cashfree payment session" });
+}
 
     // ✅ Return IDs to frontend
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId,
+      paymentSessionId: cfResponse.data.payment_session_id,
     });
   } catch (error) {
     console.error("Error creating order:", error);
