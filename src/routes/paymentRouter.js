@@ -18,7 +18,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL;
 const CASHFREE_BASE_URL =
   CASHFREE_ENV === "sandbox"
     ? "https://sandbox.cashfree.com/pg/orders"
-    : "https://api.cashfree.com/pg/orders";
+    :  "https://www.cashfree.com/pg/orders";
 
 // Cashfree headers
 const CASHFREE_HEADERS = {
