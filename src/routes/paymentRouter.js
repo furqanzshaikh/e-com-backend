@@ -41,14 +41,16 @@ function verifyWebhookSignature(signature, rawBody, secret) {
 // --- 1. Create Order ---
 router.post("/create-order", async (req, res) => {
   try {
-    const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
+    const { amount, customerName, customerEmail, customerPhone, deliveryMethod, cartItems } = req.body;
 
-    // Basic validation
+    // --- Basic validation ---
     if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
     if (typeof amount !== "number" || amount <= 0)
       return res.status(400).json({ error: "Invalid or missing total amount." });
+    if (!Array.isArray(cartItems) || cartItems.length === 0)
+      return res.status(400).json({ error: "Cart is empty." });
 
-    // JWT verification
+    // --- JWT verification ---
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer "))
       return res.status(401).json({ error: "Authorization token is required" });
@@ -64,7 +66,22 @@ router.post("/create-order", async (req, res) => {
     const userId = decoded.userId;
     if (!userId) return res.status(401).json({ error: "Token does not contain userId" });
 
-    // 1️⃣ Create order in DB
+    // --- Check if user exists ---
+    const userExists = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userExists) return res.status(404).json({ error: "User not found" });
+
+    // --- Check if all products exist ---
+    const productIds = cartItems.map(item => item.id);
+    const existingProducts = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true }
+    });
+
+    if (existingProducts.length !== productIds.length) {
+      return res.status(404).json({ error: "Some products in your cart no longer exist" });
+    }
+
+    // --- 1️⃣ Create order in DB ---
     const order = await prisma.order.create({
       data: {
         user: { connect: { id: userId } },
@@ -74,11 +91,11 @@ router.post("/create-order", async (req, res) => {
       },
     });
 
-    // 2️⃣ Cashfree order ID & return URL
+    // --- 2️⃣ Generate Cashfree order ID & return URL ---
     const cashfreeOrderId = `cf_order_${Date.now()}`;
     const returnUrl = `${FRONTEND_URL}/orders`;
 
-    // 3️⃣ Create payment record
+    // --- 3️⃣ Create payment record ---
     await prisma.payment.create({
       data: {
         orderId: order.id,
@@ -88,10 +105,10 @@ router.post("/create-order", async (req, res) => {
       },
     });
 
-    // 4️⃣ Call Cashfree API
+    // --- 4️⃣ Call Cashfree API ---
     const cfPayload = {
       order_id: cashfreeOrderId,
-      order_amount: Number(amount.toFixed(2)), // Must be number
+      order_amount: Number(amount.toFixed(2)),
       order_currency: "INR",
       customer_details: {
         customer_id: `cust_${userId}`,
@@ -106,25 +123,26 @@ router.post("/create-order", async (req, res) => {
 
     const cfResponse = await axios.post(CASHFREE_BASE_URL, cfPayload, { headers: CASHFREE_HEADERS });
 
-    // Check payment_session_id
-const paymentSessionId = cfResponse.data?.payment_session_id;
-if (!paymentSessionId) {
-  console.error("Cashfree did not return a session ID:", cfResponse.data);
-  return res.status(500).json({ error: "Failed to create Cashfree payment session" });
-}
+    const paymentSessionId = cfResponse.data?.payment_session_id;
+    if (!paymentSessionId) {
+      console.error("Cashfree did not return a session ID:", cfResponse.data);
+      return res.status(500).json({ error: "Failed to create Cashfree payment session" });
+    }
 
-    // ✅ Return IDs to frontend
+    // ✅ Return order IDs to frontend
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId: cfResponse.data.payment_session_id,
+      paymentSessionId,
     });
+
   } catch (error) {
     console.error("Error creating order:", error);
     if (error.response?.data) console.error("Cashfree API response:", error.response.data);
     res.status(500).json({ error: error.message || "Order creation failed" });
   }
 });
+
 
 // --- 2. Webhook ---
 router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
