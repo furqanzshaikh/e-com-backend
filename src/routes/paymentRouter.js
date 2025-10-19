@@ -43,11 +43,12 @@ router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
 
+    // Basic validation
     if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
     if (typeof amount !== "number" || amount <= 0)
       return res.status(400).json({ error: "Invalid or missing total amount." });
 
-    // --- Decode JWT token ---
+    // JWT verification
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer "))
       return res.status(401).json({ error: "Authorization token is required" });
@@ -88,38 +89,38 @@ router.post("/create-order", async (req, res) => {
     });
 
     // 4️⃣ Call Cashfree API
-    const cashfreeAmountString = amount.toFixed(2);
-    const cfResponse = await axios.post(
-      CASHFREE_BASE_URL,
-      {
-        order_id: cashfreeOrderId,
-        order_amount: cashfreeAmountString,
-        order_currency: "INR",
-        customer_details: {
-          customer_id: `cust_${userId}`,
-          customer_name: customerName || "Guest",
-          customer_email: customerEmail || "guest@example.com",
-          customer_phone: customerPhone || "9999999999",
-        },
-        order_meta: { return_url: returnUrl },
+    const cfPayload = {
+      order_id: cashfreeOrderId,
+      order_amount: Number(amount.toFixed(2)), // Must be number
+      order_currency: "INR",
+      customer_details: {
+        customer_id: `cust_${userId}`,
+        customer_name: customerName || "Guest",
+        customer_email: customerEmail || "guest@example.com",
+        customer_phone: customerPhone || "9999999999",
       },
-      { headers: CASHFREE_HEADERS }
-    );
+      order_meta: { return_url: returnUrl },
+    };
 
-    // ✅ IMPORTANT: use exactly the payment_session_id returned
+    console.log("Sending request to Cashfree:", cfPayload);
+
+    const cfResponse = await axios.post(CASHFREE_BASE_URL, cfPayload, { headers: CASHFREE_HEADERS });
+
+    // Check payment_session_id
     const paymentSessionId = cfResponse.data?.payment_session_id;
     if (!paymentSessionId) {
       console.error("Cashfree did not return a session ID:", cfResponse.data);
       return res.status(500).json({ error: "Failed to create Cashfree payment session" });
     }
 
+    // ✅ Return IDs to frontend
     res.json({
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId
+      paymentSessionId,
     });
   } catch (error) {
-    console.error("Full error creating order:", error);
+    console.error("Error creating order:", error);
     if (error.response?.data) console.error("Cashfree API response:", error.response.data);
     res.status(500).json({ error: error.message || "Order creation failed" });
   }
