@@ -1,52 +1,24 @@
 const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
-const  NodeCache  = require('node-cache')
 
-
-const cache = new NodeCache({ stdTTL: 60 })
 // Get all products with images
 const getAllProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (page - 1) * limit;
-
-    // ✅ Try cache first
-    const cacheKey = `products-${page}-${limit}`;
-    const cached = cache.get(cacheKey);
-    if (cached) return res.status(200).json({ message: "success", data: cached, cached: true });
-
-    // ✅ Select only necessary fields
     const products = await prisma.product.findMany({
-      skip: Number(skip),
-      take: Number(limit),
-      select: {
-        id: true,
-        name: true,
-        sellingPrice: true,
-        actualPrice: true,
-        boxpack: true,
-        stock: true,
-        brand: true,
-        images: {
-          select: { url: true },
-        },
-        categories: {
-          select: { name: true },
-        },
-        createdAt: true,
+      include: {
+        images: true,
+        categories: true, // ✅ include categories
       },
       orderBy: {
-        createdAt: "desc",
+        createdAt: 'desc',
       },
     });
-
-    cache.set(cacheKey, products); // save to cache
 
     res.status(200).json({ message: "success", data: products });
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ error: "Failed to fetch products" });
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
 };
 
