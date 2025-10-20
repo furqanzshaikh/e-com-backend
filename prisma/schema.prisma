@@ -51,6 +51,7 @@ model Product {
   // Timestamps
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+  @@index([createdAt])
 }
 
 
@@ -81,6 +82,7 @@ model Accessory {
   categories    Category[]       @relation("AccessoryCategories")
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  @@index([createdAt])
 }
 
 model Category {
