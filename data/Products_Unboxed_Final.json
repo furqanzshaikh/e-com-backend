@@ -11,7 +11,7 @@
             "Office"
         ],
         "brand": "HP",
-        "images": []
+        "images": ["https://m.media-amazon.com/images/I/61r6IGHMl9L._SL1100_.jpg"]
     },
     {
         "name": "Lenovo ThinkCentre CB1907IN All-in-One (Intel i5 12th Gen / 8GB RAM / 512GB SSD)",
@@ -25,7 +25,7 @@
             "Office"
         ],
         "brand": "Lenovo",
-        "images": []
+        "images": ["https://m.media-amazon.com/images/I/81GTQxGpAJL._SL1500_.jpg"]
     },
     {
         "name": "ASUS ExpertCenter CR1007IN Ultra AIO (Intel Core Ultra 7 155U / 16GB RAM / 1TB SSD)",
@@ -39,7 +39,7 @@
             "Creator"
         ],
         "brand": "ASUS",
-        "images": []
+        "images": ["https://m.media-amazon.com/images/I/71jLH9zyZLL._SL1500_.jpg"]
     },
     {
         "name": "ASUS D320MT Compact Desktop PC (Intel i3 13th Gen / 4GB RAM / 500GB HDD)",
@@ -53,7 +53,7 @@
             "Entry-Level"
         ],
         "brand": "ASUS",
-        "images": []
+        "images": ["https://www.asusstores.in/upload/big/asus-d320mt-i36100053c-desktop.png"]
     },
     {
         "name": "Lenovo IdeaCentre DD2986IN All-in-One (Celeron / 8GB RAM / 512GB SSD)",
@@ -67,7 +67,7 @@
             "Entry-Level"
         ],
         "brand": "Lenovo",
-        "images": []
+        "images": ["https://m.media-amazon.com/images/I/81MRyBUtg7L._SL1500_.jpg"]
     },
     {
         "name": "HP M01-F3486IN Home Desktop PC (Ryzen 3 5300G / 4GB RAM / 256GB SSD)",
@@ -81,7 +81,7 @@
             "Student"
         ],
         "brand": "HP",
-        "images": []
+        "images": ["https://www.hpshowroominchennai.in/upload/big/hp-m01-f3486in-desktop.jpg"]
     },
     {
         "name": "ASUS M3402WFA-KBA016WS AIO PC (Ryzen 3 7320U / 8GB RAM / 512GB SSD / 23.8” FHD)",

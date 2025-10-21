@@ -75,7 +75,7 @@ router.post("/create-order", async (req, res) => {
 
     // 2️⃣ Cashfree order ID & return URL
     const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const returnUrl = `${FRONTEND_URL}/orders?order_id=${cashfreeOrderId}`
+    const returnUrl = `${FRONTEND_URL}/orders`
  
 
     // 3️⃣ Create payment record
@@ -193,5 +193,29 @@ router.get("/check-status/:orderId", async (req, res) => {
     res.status(500).json({ error: "Could not verify payment status" });
   }
 });
+
+router.post("/cancel", async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: "orderId is required" });
+
+    // Update payment & order
+    await prisma.payment.updateMany({
+      where: { orderId, status: "PENDING" },
+      data: { status: "CANCELLED" },
+    });
+
+    await prisma.order.updateMany({
+      where: { id: orderId, status: "PENDING" },
+      data: { status: "CANCELLED" },
+    });
+
+    res.json({ message: "Payment cancelled successfully" });
+  } catch (err) {
+    console.error("Cancel payment error:", err);
+    res.status(500).json({ error: "Failed to cancel payment" });
+  }
+});
+
 
 module.exports = router;  
