@@ -14,13 +14,12 @@ const CASHFREE_ENV = process.env.CASHFREE_ENV || "sandbox";
 const API_VERSION = "2023-08-01";
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
-// Cashfree API endpoint
+// --- Cashfree endpoints ---
 const CASHFREE_BASE_URL =
   CASHFREE_ENV === "sandbox"
     ? "https://sandbox.cashfree.com/pg/orders"
     : "https://api.cashfree.com/pg/orders";
 
-// Cashfree headers
 const CASHFREE_HEADERS = {
   "x-client-id": CASHFREE_APP_ID,
   "x-client-secret": CASHFREE_SECRET_KEY,
@@ -38,11 +37,10 @@ function verifyWebhookSignature(signature, rawBody, secret) {
   return computedSignature === signature;
 }
 
-// --- 1. Create Order ---
+// --- 1️⃣ Create Order ---
 router.post("/create-order", async (req, res) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, deliveryMethod } = req.body;
-
     if (!deliveryMethod) return res.status(400).json({ error: "deliveryMethod is required" });
     if (typeof amount !== "number" || amount <= 0)
       return res.status(400).json({ error: "Invalid or missing total amount." });
@@ -56,14 +54,14 @@ router.post("/create-order", async (req, res) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
+    } catch {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
 
     const userId = decoded.userId;
     if (!userId) return res.status(401).json({ error: "Token does not contain userId" });
 
-    // 1️⃣ Create order in DB
+    // --- Create order in DB ---
     const order = await prisma.order.create({
       data: {
         user: { connect: { id: userId } },
@@ -73,12 +71,14 @@ router.post("/create-order", async (req, res) => {
       },
     });
 
-    // 2️⃣ Cashfree order ID & return URL
     const cashfreeOrderId = `cf_order_${Date.now()}`;
-    const returnUrl = `${FRONTEND_URL}/orders`
- 
+    const returnUrl = `${FRONTEND_URL}/payment-success?orderId=${cashfreeOrderId}`;
 
-    // 3️⃣ Create payment record
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { cashfreeOrderId },
+    });
+
     await prisma.payment.create({
       data: {
         orderId: order.id,
@@ -88,13 +88,12 @@ router.post("/create-order", async (req, res) => {
       },
     });
 
-    // 4️⃣ Call Cashfree API
-    const cashfreeAmountString = amount.toFixed(2);
+    // --- Create order in Cashfree ---
     const cfResponse = await axios.post(
       CASHFREE_BASE_URL,
       {
         order_id: cashfreeOrderId,
-        order_amount: cashfreeAmountString,
+        order_amount: amount.toFixed(2),
         order_currency: "INR",
         customer_details: {
           customer_id: `cust_${userId}`,
@@ -107,39 +106,61 @@ router.post("/create-order", async (req, res) => {
       { headers: CASHFREE_HEADERS }
     );
 
-    // ✅ IMPORTANT: use exactly the payment_session_id returned
     const paymentSessionId = cfResponse.data?.payment_session_id;
     if (!paymentSessionId) {
-      console.error("Cashfree did not return a session ID:", cfResponse.data);
+      console.error("❌ Cashfree missing session ID:", cfResponse.data);
       return res.status(500).json({ error: "Failed to create Cashfree payment session" });
     }
 
-    res.json({
+    console.log("✅ Cashfree order created:", {
       dbOrderId: order.id,
       cashfreeOrderId,
-      paymentSessionId
+      paymentSessionId,
     });
+
+    res.json({ dbOrderId: order.id, cashfreeOrderId, paymentSessionId });
   } catch (error) {
-    console.error("Full error creating order:", error);
-    if (error.response?.data) console.error("Cashfree API response:", error.response.data);
+    console.error("Full error creating order:", error.response?.data || error.message);
     res.status(500).json({ error: error.message || "Order creation failed" });
   }
 });
 
-// --- 2. Webhook ---
-router.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+// --- 2️⃣ Webhook ---
+router.post("/webhook", async (req, res) => {
   try {
-    const signature = req.headers["x-webhook-signature"];
-    const rawBody = req.body.toString();
+    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+
+    let verified = true;
+    if (CASHFREE_ENV !== "sandbox") {
+      const signature = req.headers["x-webhook-signature"];
+      verified = verifyWebhookSignature(signature, rawBody, CASHFREE_SECRET_KEY);
+    }
+
+    if (!verified) {
+      console.error("❌ Invalid Cashfree webhook signature");
+      return res.status(403).send("Invalid signature");
+    }
+
     const event = JSON.parse(rawBody);
+    console.log("🔔 Webhook received:", event.type);
 
-    if (!verifyWebhookSignature(signature, rawBody, CASHFREE_SECRET_KEY))
-      return res.status(403).send("Signature verification failed");
-
+    // --- Handle successful payments ---
     if (event.type === "PAYMENT_SUCCESS") {
       const { order, payment } = event.data;
-      await prisma.payment.update({
-        where: { orderId: order.order_id },
+      const cashfreeOrderId = order.order_id;
+
+      const dbOrder = await prisma.order.findFirst({
+        where: { cashfreeOrderId },
+        include: { user: true },
+      });
+
+      if (!dbOrder) {
+        console.error("❌ No DB order found for:", cashfreeOrderId);
+        return res.status(404).send("Order not found");
+      }
+
+      await prisma.payment.updateMany({
+        where: { orderId: dbOrder.id },
         data: {
           paymentId: payment.payment_id,
           status: "SUCCESS",
@@ -149,57 +170,62 @@ router.post("/webhook", express.raw({ type: "application/json" }), async (req, r
           rawWebhookData: JSON.stringify(event),
         },
       });
+
+      await prisma.order.update({
+        where: { id: dbOrder.id },
+        data: { status: "PAID" },
+      });
+
+      console.log("✅ Payment recorded for:", dbOrder.id);
     }
 
+    // --- Handle failed payments ---
     if (event.type === "PAYMENT_FAILED") {
       const { order } = event.data;
-      await prisma.payment.update({
-        where: { orderId: order.order_id },
-        data: { status: "FAILED", rawWebhookData: JSON.stringify(event) },
-      });
+      const cashfreeOrderId = order.order_id;
+
+      const dbOrder = await prisma.order.findFirst({ where: { cashfreeOrderId } });
+      if (dbOrder) {
+        await prisma.payment.updateMany({
+          where: { orderId: dbOrder.id },
+          data: { status: "FAILED", rawWebhookData: JSON.stringify(event) },
+        });
+        await prisma.order.update({
+          where: { id: dbOrder.id },
+          data: { status: "FAILED" },
+        });
+      }
     }
 
     res.sendStatus(200);
   } catch (error) {
-    console.error("Webhook error:", error);
-    res.sendStatus(200); // prevent retries
+    console.error("Webhook error:", error.message);
+    res.sendStatus(200); // prevents Cashfree retry spam
   }
 });
 
-// --- 3. Check final order status ---
+// --- 3️⃣ Check Payment Status ---
 router.get("/check-status/:orderId", async (req, res) => {
   const { orderId } = req.params;
   try {
-    const cfStatus = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, { headers: CASHFREE_HEADERS });
+    const cfStatus = await axios.get(`${CASHFREE_BASE_URL}/${orderId}`, {
+      headers: CASHFREE_HEADERS,
+    });
+
     const cashfreeStatus = cfStatus.data.order_status;
-
-    if (cashfreeStatus === "PAID" || cashfreeStatus === "ACTIVE") {
-      await prisma.payment.updateMany({
-        where: { orderId, status: { not: "SUCCESS" } },
-        data: { status: "SUCCESS" },
-      });
-    }
-
-    if (cashfreeStatus === "FAILED") {
-      await prisma.payment.updateMany({
-        where: { orderId, status: { not: "FAILED" } },
-        data: { status: "FAILED" },
-      });
-    }
-
     res.json({ status: cashfreeStatus, data: cfStatus.data });
   } catch (error) {
-    console.error("Error checking order status:", error.response?.data || error);
+    console.error("Check status error:", error.response?.data || error.message);
     res.status(500).json({ error: "Could not verify payment status" });
   }
 });
 
+// --- 4️⃣ Cancel Payment ---
 router.post("/cancel", async (req, res) => {
   try {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "orderId is required" });
 
-    // Update payment & order
     await prisma.payment.updateMany({
       where: { orderId, status: "PENDING" },
       data: { status: "CANCELLED" },
@@ -217,5 +243,58 @@ router.post("/cancel", async (req, res) => {
   }
 });
 
+// --- 5️⃣ Manual Verify Endpoint ---
+router.post("/verify", async (req, res) => {
+  const { orderId } = req.body;
 
-module.exports = router;  
+  try {
+    const response = await axios.get(
+      `https://sandbox.cashfree.com/pg/orders/${orderId}`,
+      {
+        headers: {
+          accept: "application/json",
+          "x-client-id": CASHFREE_APP_ID,
+          "x-client-secret": CASHFREE_SECRET_KEY,
+          "x-api-version": "2023-08-01",
+        },
+      }
+    );
+
+    const orderStatus = response.data.order_status;
+
+    if (orderStatus === "PAID") {
+      await prisma.payment.updateMany({
+        where: { order: { cashfreeOrderId: orderId } },
+        data: { status: "SUCCESS" },
+      });
+
+      await prisma.order.updateMany({
+        where: { cashfreeOrderId: orderId },
+        data: { status: "CONFIRMED" },
+      });
+
+      return res.json({ status: "SUCCESS", message: "Payment verified successfully." });
+    }
+
+    await prisma.payment.updateMany({
+      where: { order: { cashfreeOrderId: orderId } },
+      data: { status: "FAILED" },
+    });
+
+    await prisma.order.updateMany({
+      where: { cashfreeOrderId: orderId },
+      data: { status: "CANCELLED" },
+    });
+
+    return res.json({ status: "FAILED", message: "Payment failed or cancelled." });
+  } catch (error) {
+    console.error("Cashfree verify error:", error.response?.data || error.message);
+    res.status(500).json({
+      status: "FAILED",
+      message: "Error verifying payment",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+module.exports = router;

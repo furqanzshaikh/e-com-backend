@@ -18,8 +18,7 @@ const {
   deleteAccessory,
   deleteAllFromCart,
   createManyAccessories,
-  getAllCategory,
-  createCategories
+
 } = require('../controllers/productController');
 
 const { placeOrder } = require('../controllers/orderController');
@@ -32,8 +31,8 @@ const router = Router();
 // This route now supports query params for filters
 router.get('/', getAllProducts); // <-- main filter route
 router.get('/all', getAllProducts); // optional legacy route
-router.get('/categories', getAllCategory);
-router.post('/categories', verifyAdminOrSuperAdmin, createCategories);
+
+
 
 // ✅ Public Accessory Routes
 router.get('/accessories', getAllAccessories);

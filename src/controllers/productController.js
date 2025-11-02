@@ -931,69 +931,10 @@ const updateCart = async (req, res) => {
 };
 
 
-const getAllCategory = async (req, res) => {
-  try {
-    const categories = await prisma.category.findMany();
-    res.status(200).json(categories);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ message: 'Failed to fetch categories' });
-  }
-};
-
-const createCategories = async (req, res) => {
-  try {
-    const { categories } = req.body;
-
-    // Basic validation
-    if (!Array.isArray(categories) || categories.length === 0) {
-      return res.status(400).json({ message: "Categories array is required" });
-    }
-
-    // Trim and remove duplicates in request
-    const uniqueCategories = [...new Set(categories.map(c => c.trim()))];
-
-    // Find existing categories
-    const existing = await prisma.category.findMany({
-      where: {
-        name: { in: uniqueCategories },
-      },
-      select: { name: true },
-    });
-
-    const existingNames = existing.map(c => c.name);
-
-    // Filter only new categories
-    const newCategories = uniqueCategories.filter(
-      name => !existingNames.includes(name)
-    );
-
-    if (newCategories.length === 0) {
-      return res.status(409).json({ message: "All categories already exist" });
-    }
-
-    // Bulk insert
-    const created = await prisma.category.createMany({
-      data: newCategories.map(name => ({ name })),
-      skipDuplicates: true, // safety
-    });
-
-    res.status(201).json({
-      message: "Categories created successfully",
-      createdCount: created.count,
-      skipped: existingNames,
-    });
-  } catch (error) {
-    console.error("Error creating categories:", error);
-    res.status(500).json({ message: "Failed to create categories" });
-  }
-};
 
 
 
 module.exports = {
-  createCategories,
-  getAllCategory,
   updateCart,
   deleteFromCart,
   getProductFromCart,

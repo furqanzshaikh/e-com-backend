@@ -28,13 +28,17 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
 
 // --------------------- Models ---------------------
 
 model Product {
   id           Int             @id @default(autoincrement())
   name         String          @unique // Prevent duplicate product names
-  description  String?         // Optional description
+  description String? @db.Text
   actualPrice  Float
   sellingPrice Float
   boxpack      Boolean
@@ -130,17 +134,23 @@ model PartImage {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("USER")
-  carts     Cart[]
-  orders    Order[]
-  builds    CustomBuild[]
-  parts     Part[]   // ✅ Back-reference to Part model
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int       @id @default(autoincrement())
+  name       String
+  email      String    @unique
+  password   String
+  role       String    @default("USER")
+
+
+  verified   Boolean   @default(false)
+  otp        String?
+  otpExpires DateTime?
+
+  carts      Cart[]
+  orders     Order[]
+  builds     CustomBuild[]
+  parts      Part[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Cart {
@@ -160,17 +170,18 @@ model Cart {
 }
 
 model Order {
-  id             String       @id @default(uuid())
-  user           User         @relation(fields: [userId], references: [id])
-  userId         Int
-  items          OrderItem[]
-  payments       Payment[]    // <-- add this back-relation
-  totalAmount    Float
-  deliveryMethod String
-  pickupDate     DateTime?    // optional, only used for storeVisit
-  pickupStore    String?      // optional, only used for storeVisit
-  status         OrderStatus  @default(PENDING)
-  createdAt      DateTime     @default(now())
+  id               String       @id @default(uuid())
+  user             User         @relation(fields: [userId], references: [id])
+  userId           Int
+  items            OrderItem[]
+  payments         Payment[]
+  totalAmount      Float
+  deliveryMethod   String
+  pickupDate       DateTime?
+  pickupStore      String?
+  status           OrderStatus  @default(PENDING)
+  createdAt        DateTime     @default(now())
+  cashfreeOrderId  String?
 }
 
 model OrderItem {
@@ -217,4 +228,27 @@ model Payment {
   paymentMethod  String?
   createdAt      DateTime      @default(now())
   rawWebhookData String?
+}
+
+model Coupon {
+  id                Int       @id @default(autoincrement())
+  code              String    @unique
+  discountType      DiscountType
+  discountValue     Float
+  minPurchaseAmount Float      @default(0)
+  maxDiscountAmount Float?
+  expiryDate        DateTime
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model Sale {
+  id          Int       @id @default(autoincrement())
+  title       String
+  startTime   DateTime
+  endTime     DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

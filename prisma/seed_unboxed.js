@@ -2,7 +2,7 @@ require('dotenv').config({ path: '../.env' });
 const { PrismaClient } = require("./../generated/prisma");
 const prisma = new PrismaClient();
 
-const unboxedProducts = require('../data/Products_Unboxed_Final.json');
+const unboxedProducts = require('../data/Unboxed_Final_Cleaned_With_Images_Stock.json');
 
 async function main() {
   console.log("🌱 Starting database seeding (Unboxed Products)...");
