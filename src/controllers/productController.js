@@ -1,29 +1,42 @@
 const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
+const redis = require('../redisClient')
 
-// Get all products with images
 const getAllProducts = async (req, res) => {
   try {
+    const cacheKey = "all_products";
+
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log("🧠 Cache hit (all products)");
+      return res.json({
+        message: "success (from cache)",
+        data: JSON.parse(cached),
+      });
+    }
+
+    console.log("🚀 Cache miss — fetching from DB...");
     const products = await prisma.product.findMany({
       include: {
         images: true,
-        categories: true, // ✅ include categories
+        categories: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
-    res.status(200).json({ message: "success", data: products });
+    await redis.set(cacheKey, JSON.stringify(products), "EX", 3600);
+
+    res.json({ message: "success", data: products });
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: "Failed to fetch products" });
   }
 };
 
-
-// Get single product by ID with images
+// 🔹 GET PRODUCT BY ID (with individual cache)
 const getProductById = async (req, res) => {
   const { id } = req.params;
   const parsedId = parseInt(id);
@@ -33,17 +46,29 @@ const getProductById = async (req, res) => {
   }
 
   try {
+    const cacheKey = `product_${parsedId}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log(`🧠 Cache hit (product ${parsedId})`);
+      return res.json({
+        message: "success (from cache)",
+        data: JSON.parse(cached),
+      });
+    }
+
     const product = await prisma.product.findUnique({
       where: { id: parsedId },
       include: {
         images: true,
-        categories: true, // ✅ include related categories if using relation
+        categories: true,
       },
     });
 
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
+
+    await redis.set(cacheKey, JSON.stringify(product), "EX", 3600);
 
     res.status(200).json({ message: "success", data: product });
   } catch (error) {
@@ -52,31 +77,30 @@ const getProductById = async (req, res) => {
   }
 };
 
-
-
+// 🔹 CREATE PRODUCT (invalidate cache)
 const createProduct = async (req, res) => {
   const {
     name,
     description,
     actualPrice,
     sellingPrice,
-    category, // should be array of category names
+    category,
     stock,
     brand,
     images = [],
-    boxpack
+    boxpack,
   } = req.body;
 
-  // Basic validation
   if (
     !name ||
-    typeof actualPrice !== 'number' ||
-    typeof sellingPrice !== 'number' ||
+    typeof actualPrice !== "number" ||
+    typeof sellingPrice !== "number" ||
     !Array.isArray(category) ||
     category.length === 0
   ) {
     return res.status(400).json({
-      error: "Required fields: name, actualPrice (number), sellingPrice (number), and category (non-empty array)",
+      error:
+        "Required fields: name, actualPrice (number), sellingPrice (number), and category (non-empty array)",
     });
   }
 
@@ -92,16 +116,12 @@ const createProduct = async (req, res) => {
         brand,
         boxpack: boxpack ?? false,
         stock: stock ?? 0,
-
-        // Many-to-many relation for categories
         categories: {
           connectOrCreate: category.map((catName) => ({
             where: { name: catName },
             create: { name: catName },
           })),
         },
-
-        // One-to-many relation for images
         images: {
           create: images.map((img) => ({
             url: img.url,
@@ -115,16 +135,22 @@ const createProduct = async (req, res) => {
       },
     });
 
-    res.status(201).json({ message: "Product created successfully", data: newProduct });
+    // ❌ Invalidate all product cache
+    await redis.del("all_products");
+    console.log("🧹 Cache cleared: all_products");
+
+    res
+      .status(201)
+      .json({ message: "Product created successfully", data: newProduct });
   } catch (error) {
     console.error("Error creating product:", error);
-    res.status(500).json({ error: "Failed to create product", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to create product", details: error.message });
   }
 };
 
-
-
-// Update product (including images)
+// 🔹 UPDATE PRODUCT (update cache + invalidate)
 const updateProduct = async (req, res) => {
   const { id } = req.params;
   const {
@@ -136,29 +162,24 @@ const updateProduct = async (req, res) => {
     stock,
     images = [],
     boxpack,
-    brand
+    brand,
   } = req.body;
 
   try {
     const productId = parseInt(id);
     if (isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product ID' });
+      return res.status(400).json({ error: "Invalid product ID" });
     }
 
-    // Adjust name based on boxpack value
     let finalName = name;
-
     if (boxpack === false) {
-      // Add "(Unboxed)" if not already there
       if (!finalName.includes("(Unboxed)")) {
         finalName = `${finalName} (Unboxed)`;
       }
     } else if (boxpack === true) {
-      // Remove "(Unboxed)" if present
       finalName = finalName.replace(/\s*\(Unboxed\)$/, "");
     }
 
-    // Update main product fields
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: {
@@ -169,18 +190,17 @@ const updateProduct = async (req, res) => {
         brand,
         boxpack,
         stock,
-        // Clear and replace categories
         categories: {
-          set: [], // Remove all existing
-          connectOrCreate: category?.map((catName) => ({
-            where: { name: catName },
-            create: { name: catName },
-          })) || [],
+          set: [],
+          connectOrCreate:
+            category?.map((catName) => ({
+              where: { name: catName },
+              create: { name: catName },
+            })) || [],
         },
       },
     });
 
-    // Update images (delete old & insert new)
     await prisma.productImage.deleteMany({ where: { productId } });
 
     if (images.length > 0) {
@@ -192,33 +212,45 @@ const updateProduct = async (req, res) => {
       await prisma.productImage.createMany({ data: imagesToCreate });
     }
 
-    // Return full product with updated categories & images
     const productWithDetails = await prisma.product.findUnique({
       where: { id: productId },
-      include: {
-        images: true,
-        categories: true,
-      },
+      include: { images: true, categories: true },
     });
 
-    res.status(200).json({ message: 'Product updated successfully', data: productWithDetails });
+    // ❌ Invalidate both single and all cache
+    await redis.del(`product_${productId}`);
+    await redis.del("all_products");
+    console.log(`🧹 Cache cleared: product_${productId}, all_products`);
+
+    res
+      .status(200)
+      .json({ message: "Product updated successfully", data: productWithDetails });
   } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(500).json({ error: 'Failed to update product', details: error.message });
+    console.error("Error updating product:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to update product", details: error.message });
   }
 };
 
-// Delete product and its images
+// 🔹 DELETE PRODUCT (invalidate cache)
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.productImage.deleteMany({ where: { productId: parseInt(id) } });
-    await prisma.product.delete({ where: { id: parseInt(id) } });
+    const productId = parseInt(id);
+
+    await prisma.productImage.deleteMany({ where: { productId } });
+    await prisma.product.delete({ where: { id: productId } });
+
+    // ❌ Invalidate related caches
+    await redis.del(`product_${productId}`);
+    await redis.del("all_products");
+    console.log(`🧹 Cache cleared: product_${productId}, all_products`);
 
     res.status(200).json({ message: "Product deleted" });
   } catch (error) {
     console.error("Error deleting product:", error);
-    res.status(500).json({ error: 'Failed to delete product' });
+    res.status(500).json({ error: "Failed to delete product" });
   }
 };
 
@@ -719,16 +751,16 @@ const handleAddToPart = async (req, res) => {
 
 
 
-
 const addToCart = async (req, res) => {
   try {
     const userId = req.userId;
-
     const rawItems = req.body;
-    const items = Array.isArray(rawItems) ? rawItems : [rawItems]; // ✅ normalize input
+    const items = Array.isArray(rawItems) ? rawItems : [rawItems]; // normalize input
 
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'Request body must be a non-empty array or object' });
+      return res
+        .status(400)
+        .json({ message: 'Request body must be a non-empty array or object' });
     }
 
     const addedItems = [];
@@ -748,7 +780,29 @@ const addToCart = async (req, res) => {
         });
       }
 
-      // Check if item already exists in cart
+      // 🧩 Determine item type
+      let model;
+      let itemId;
+      if (productId) {
+        model = prisma.product;
+        itemId = productId;
+      } else if (accessoryId) {
+        model = prisma.accessory;
+        itemId = accessoryId;
+      } else if (partId) {
+        model = prisma.part;
+        itemId = partId;
+      }
+
+      // 🛡️ Validate item exists before creating
+      const exists = await model.findUnique({ where: { id: itemId } });
+      if (!exists) {
+        return res.status(404).json({
+          message: `Item with id ${itemId} not found in ${model._modelMeta.name} table`,
+        });
+      }
+
+      // 🔍 Check if item already exists in cart
       const existingItem = await prisma.cart.findFirst({
         where: {
           userId,
@@ -770,7 +824,7 @@ const addToCart = async (req, res) => {
           },
         });
       } else {
-        // Create new cart item
+        // ✅ Create new cart item safely
         cartItem = await prisma.cart.create({
           data: {
             userId,
@@ -787,15 +841,14 @@ const addToCart = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: 'Items added to cart',
+      message: 'Items added to cart successfully',
       data: addedItems,
     });
   } catch (error) {
     console.error('❌ Error in addToCart:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
-
 
 
 
@@ -809,20 +862,20 @@ const getProductFromCart = async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized: User ID missing' });
     }
 
- const cartItems = await prisma.cart.findMany({
-  where: { userId },
-  include: {
-    product: {
-      include: { images: true },
-    },
-    accessory: {
-      include: { images: true },
-    },
-    part: {
-      include: { images: true },
-    }, 
-  },
-});
+    const cartItems = await prisma.cart.findMany({
+      where: { userId },
+      include: {
+        product: {
+          include: { images: true },
+        },
+        accessory: {
+          include: { images: true },
+        },
+        part: {
+          include: { images: true },
+        },
+      },
+    });
 
     return res.status(200).json({
       message: 'Cart fetched successfully',
@@ -945,8 +998,8 @@ module.exports = {
   updateProduct,
   deleteProduct,
   createMultipleProducts,
-deleteAllFromCart,
-addToCart,
+  deleteAllFromCart,
+  addToCart,
   createAccessory,
   getAllAccessories,
   getAccessoryById,

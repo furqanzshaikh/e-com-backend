@@ -28,6 +28,7 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
+
 enum DiscountType {
   PERCENTAGE
   FIXED
@@ -36,42 +37,41 @@ enum DiscountType {
 // --------------------- Models ---------------------
 
 model Product {
-  id           Int             @id @default(autoincrement())
-  name         String          @unique // Prevent duplicate product names
-  description String? @db.Text
+  id           Int     @id @default(autoincrement())
+  name         String  @unique
+  description  String? @db.Text
   actualPrice  Float
   sellingPrice Float
   boxpack      Boolean
-  stock        Int             @default(0)
+  stock        Int     @default(0)
   brand        String
 
   // Relations
-  images       ProductImage[]
-  carts        Cart[]
-  reviews      Review[]
-  orderItems   OrderItem[]
-  categories   Category[]      @relation("ProductCategories")
+  images     ProductImage[]
+  carts      Cart[]
+  reviews    Review[]
+  orderItems OrderItem[]
+  categories Category[]     @relation("ProductCategories")
 
-  // Timestamps
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([brand])
   @@index([createdAt])
 }
 
-
 model ProductImage {
   id        Int      @id @default(autoincrement())
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
   url       String
   alt       String?
   createdAt DateTime @default(now())
 }
 
-
-
 model Accessory {
-  id            Int              @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   name          String
   description   String?
   actualPrice   Float
@@ -79,120 +79,123 @@ model Accessory {
   brand         String
   compatibility String?
   boxpack       Boolean
-  stock         Int              @default(0)
-  images        AccessoryImage[]
-  carts         Cart[]
-  orderItems    OrderItem[]
-  categories    Category[]       @relation("AccessoryCategories")
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  stock         Int     @default(0)
+
+  // Relations
+  images     AccessoryImage[]
+  carts      Cart[]
+  orderItems OrderItem[]
+  categories Category[]        @relation("AccessoryCategories")
+  reviews    AccessoryReview[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([brand])
   @@index([createdAt])
 }
 
 model Category {
-  id         Int         @id @default(autoincrement())
-  name       String      @unique
-  products   Product[]   @relation("ProductCategories")
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  products    Product[]   @relation("ProductCategories")
   accessories Accessory[] @relation("AccessoryCategories")
 }
 
-
 model AccessoryImage {
-  id           Int         @id @default(autoincrement())
-  accessory    Accessory   @relation(fields: [accessoryId], references: [id])
-  accessoryId  Int
-  url          String
-  alt          String?
-  createdAt    DateTime    @default(now())
+  id          Int       @id @default(autoincrement())
+  accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+  accessoryId Int
+  url         String
+  alt         String?
+  createdAt   DateTime  @default(now())
 }
 
 model Part {
-  id        Int           @id @default(autoincrement())
-  name      String
-  category  String
-  subcategory     String
-  price     Float
-  stock     Int           @default(0)
-  userId    Int
-  user      User          @relation(fields: [userId], references: [id])
-  createdAt DateTime      @default(now())
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String
+  subcategory String
+  price       Float
+  stock       Int      @default(0)
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 
   images     PartImage[]
   carts      Cart[]
   orderItems OrderItem[]
 }
 
-
-
 model PartImage {
-  id       Int     @id @default(autoincrement())
-  url      String
-  alt      String?
-  part     Part    @relation(fields: [partId], references: [id])
-  partId   Int
+  id        Int      @id @default(autoincrement())
+  url       String
+  alt       String?
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  partId    Int
   createdAt DateTime @default(now())
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   name       String
-  email      String    @unique
+  email      String        @unique
   password   String
-  role       String    @default("USER")
-
-
-  verified   Boolean   @default(false)
+  role       Role          @default(USER)
+  verified   Boolean       @default(false)
   otp        String?
   otpExpires DateTime?
-
   carts      Cart[]
   orders     Order[]
   builds     CustomBuild[]
   parts      Part[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([email])
 }
 
 model Cart {
-  id           Int         @id @default(autoincrement())
-  userId       Int
-  productId    Int?
-  accessoryId  Int?
-  partId       Int?
-  quantity     Int         @default(1)
-  priceAtAdd   Float
-  createdAt    DateTime    @default(now())
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  productId   Int?
+  accessoryId Int?
+  partId      Int?
+  quantity    Int      @default(1)
+  priceAtAdd  Float
+  createdAt   DateTime @default(now())
 
-  user         User        @relation(fields: [userId], references: [id])
-  product      Product?    @relation(fields: [productId], references: [id])
-  accessory    Accessory?  @relation(fields: [accessoryId], references: [id])
-  part         Part?       @relation(fields: [partId], references: [id])
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product?   @relation(fields: [productId], references: [id])
+  accessory Accessory? @relation(fields: [accessoryId], references: [id])
+  part      Part?      @relation(fields: [partId], references: [id])
 }
 
 model Order {
-  id               String       @id @default(uuid())
-  user             User         @relation(fields: [userId], references: [id])
-  userId           Int
-  items            OrderItem[]
-  payments         Payment[]
-  totalAmount      Float
-  deliveryMethod   String
-  pickupDate       DateTime?
-  pickupStore      String?
-  status           OrderStatus  @default(PENDING)
-  createdAt        DateTime     @default(now())
-  cashfreeOrderId  String?
+  id              String      @id @default(uuid())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          Int
+  items           OrderItem[]
+  payments        Payment[]
+  totalAmount     Float
+  deliveryMethod  String
+  pickupDate      DateTime?
+  pickupStore     String?
+  status          OrderStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+  cashfreeOrderId String?
 }
 
 model OrderItem {
-  id          String      @id @default(uuid())
-  order       Order       @relation(fields: [orderId], references: [id])
+  id          String     @id @default(uuid())
+  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId     String
-  product     Product?    @relation(fields: [productId], references: [id])
+  product     Product?   @relation(fields: [productId], references: [id])
   productId   Int?
-  accessory   Accessory?  @relation(fields: [accessoryId], references: [id])
+  accessory   Accessory? @relation(fields: [accessoryId], references: [id])
   accessoryId Int?
-  part        Part?       @relation(fields: [partId], references: [id])
+  part        Part?      @relation(fields: [partId], references: [id])
   partId      Int?
   quantity    Int
   price       Float
@@ -200,7 +203,7 @@ model OrderItem {
 
 model Review {
   id        Int      @id @default(autoincrement())
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId Int
   rating    Int
   comment   String?
@@ -208,22 +211,32 @@ model Review {
   createdAt DateTime @default(now())
 }
 
+model AccessoryReview {
+  id          Int       @id @default(autoincrement())
+  accessory   Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+  accessoryId Int
+  rating      Int
+  comment     String?
+  reviewer    String?
+  createdAt   DateTime  @default(now())
+}
+
 model CustomBuild {
   id         Int      @id @default(autoincrement())
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
   buildName  String
-  components Json     // store selectedComponents from frontend
+  components Json
   createdAt  DateTime @default(now())
 }
 
 model Payment {
   id             Int           @id @default(autoincrement())
-  order          Order         @relation(fields: [orderId], references: [id])
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId        String
   paymentId      String?
   status         PaymentStatus
-  amount         Decimal?
+  amount         Decimal?      @db.Decimal(10, 2)
   currency       String        @default("INR")
   paymentMethod  String?
   createdAt      DateTime      @default(now())
@@ -231,24 +244,24 @@ model Payment {
 }
 
 model Coupon {
-  id                Int       @id @default(autoincrement())
-  code              String    @unique
+  id                Int          @id @default(autoincrement())
+  code              String       @unique
   discountType      DiscountType
   discountValue     Float
-  minPurchaseAmount Float      @default(0)
+  minPurchaseAmount Float        @default(0)
   maxDiscountAmount Float?
   expiryDate        DateTime
-  isActive          Boolean    @default(true)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
 model Sale {
-  id          Int       @id @default(autoincrement())
-  title       String
-  startTime   DateTime
-  endTime     DateTime
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

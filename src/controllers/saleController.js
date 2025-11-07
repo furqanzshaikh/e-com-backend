@@ -1,23 +1,13 @@
 const { PrismaClient } = require("../../generated/prisma");
 const prisma = new PrismaClient();
 
-
-
- const createSale = async (req, res) => {
+// ✅ Create Sale
+const createSale = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      discountType,
-      discountValue,
-      startDate,
-      endDate,
-      startTime,
-      endTime,
-    } = req.body;
+    const { title, startDate, endDate, startTime, endTime } = req.body;
 
     // Validate required fields
-    if (!title || !discountType || !discountValue || !startDate || !endDate) {
+    if (!title || !startDate || !endDate) {
       return res
         .status(400)
         .json({ success: false, error: "Missing required fields" });
@@ -33,15 +23,10 @@ const prisma = new PrismaClient();
         .json({ success: false, error: "Invalid date or time format" });
     }
 
-    // Create sale
+    // Create sale (only fields that exist in model)
     const sale = await prisma.sale.create({
       data: {
         title,
-        description,
-        discountType,
-        discountValue: parseFloat(discountValue),
-        startDate: start,
-        endDate: end,
         startTime: start,
         endTime: end,
         isActive: true,
@@ -55,29 +40,45 @@ const prisma = new PrismaClient();
   }
 };
 
- const getActiveSale = async (req, res) => {
+// ✅ Get Active Sale
+const getActiveSale = async (req, res) => {
   try {
     const now = new Date();
 
-    const activeSale = await prisma.sale.findFirst({
+    // Find an ongoing sale first
+    let activeSale = await prisma.sale.findFirst({
       where: {
-        startDate: { lte: now },
-        endDate: { gte: now },
+        startTime: { lte: now },
+        endTime: { gte: now },
         isActive: true,
       },
     });
 
+    // If no ongoing sale, find the next upcoming one
     if (!activeSale) {
-      return res.json({ success: false, message: "No active sale" });
+      activeSale = await prisma.sale.findFirst({
+        where: {
+          startTime: { gt: now },
+          isActive: true,
+        },
+        orderBy: { startTime: "asc" },
+      });
+    }
+
+    if (!activeSale) {
+      return res.json({ success: false, message: "No active or upcoming sale" });
     }
 
     return res.json({ success: true, activeSale });
   } catch (error) {
+    console.error("Error fetching sale:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
- const getAllSales = async (req, res) => {
+
+// ✅ Get All Sales
+const getAllSales = async (req, res) => {
   try {
     const sales = await prisma.sale.findMany({ orderBy: { createdAt: "desc" } });
     res.json({ success: true, data: sales });
@@ -86,8 +87,8 @@ const prisma = new PrismaClient();
   }
 };
 
-
- const deleteSale = async (req, res) => {
+// ✅ Delete Sale
+const deleteSale = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     await prisma.sale.delete({ where: { id } });
@@ -98,8 +99,8 @@ const prisma = new PrismaClient();
 };
 
 module.exports = {
-    deleteSale,
-    getAllSales,
-    getActiveSale,
-    createSale
-}
+  createSale,
+  getActiveSale,
+  getAllSales,
+  deleteSale,
+};

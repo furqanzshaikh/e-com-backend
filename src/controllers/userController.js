@@ -64,11 +64,12 @@ const createUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
+   const finalEmail = email.toLowerCase();
     const newUser = await prisma.user.create({
+   
       data: {
         name,
-        email,
+        email:finalEmail,
         password: hashedPassword,
         role,
         otp,
@@ -85,7 +86,7 @@ const createUser = async (req, res) => {
 
     await transporter.sendMail({
       from:"furqanshaikh939@gmail.com",
-      to: email,
+      to: finalEmail,
       subject: "Email Verification OTP",
       text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
     });
@@ -104,11 +105,11 @@ const createUser = async (req, res) => {
 // 🔒 Verify OTP
 const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
-
+  const dbEmail = email.toLowerCase()
   if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email:dbEmail } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     if (user.verified) return res.status(400).json({ error: "User already verified" });
@@ -116,7 +117,7 @@ const verifyOtp = async (req, res) => {
     if (user.otpExpires < new Date()) return res.status(400).json({ error: "OTP expired" });
 
     await prisma.user.update({
-      where: { email },
+      where: { email:dbEmail },
       data: {
         verified: true,
         otp: null,
@@ -134,17 +135,18 @@ const verifyOtp = async (req, res) => {
 // ✅ Optional: Resend OTP
 const resendOtp = async (req, res) => {
   const { email } = req.body;
+  const finalEmail = email.toLowerCase()
   if (!email) return res.status(400).json({ error: "Email required" });
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email:finalEmail } });
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.verified) return res.status(400).json({ error: "User already verified" });
 
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await prisma.user.update({
-      where: { email },
+      where: { email:finalEmail },
       data: {
         otp: newOtp,
         otpExpires: new Date(Date.now() + 10 * 60 * 1000),
@@ -153,7 +155,7 @@ const resendOtp = async (req, res) => {
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: email,
+      to: finalEmail,
       subject: "Resend Email Verification OTP",
       text: `Your new OTP is ${newOtp}. It will expire in 10 minutes.`,
     });
@@ -168,11 +170,11 @@ const resendOtp = async (req, res) => {
 const updateUser = async (req, res) => {
   const { id } = req.params;
   const { name, email, role } = req.body; // ✅ include role
-
+  const finalEmail = email.toLowerCase()
   try {
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(id) },
-      data: { name, email, role }, // ✅ include role
+      data: { name, email:finalEmail, role }, // ✅ include role
       select: {
         id: true,
         name: true,

@@ -11,7 +11,7 @@ const verifyAdminOrSuperAdmin = require("../middleware/verifyAdminOrSuperAdmin")
 const router = express.Router();
 
 // Admin
-router.post("/",verifyAdminOrSuperAdmin, createSale);
+router.post("/create",verifyAdminOrSuperAdmin, createSale);
 router.get("/",verifyAdminOrSuperAdmin, getAllSales);
 router.delete("/:id",verifyAdminOrSuperAdmin, deleteSale);
 

@@ -1,11 +1,32 @@
 const { PrismaClient } = require('../../generated/prisma');
 const prisma = new PrismaClient();
+const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 
+// -----------------------------
+// Helper: Extract user info from Bearer Token
+// -----------------------------
+const getUserFromToken = (req) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded; // should include { id, name, email }
+  } catch (err) {
+    console.error("Invalid token:", err);
+    return null;
+  }
+};
+
+// -----------------------------
+// Get All Reviews
+// -----------------------------
 const getAllReviews = async (req, res) => {
   try {
     const { productId } = req.query;
-
     const where = productId ? { productId: Number(productId) } : {};
 
     const reviews = await prisma.review.findMany({
@@ -20,7 +41,9 @@ const getAllReviews = async (req, res) => {
   }
 };
 
-
+// -----------------------------
+// Get Review by ID
+// -----------------------------
 const getReviewById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -39,10 +62,17 @@ const getReviewById = async (req, res) => {
   }
 };
 
-
+// -----------------------------
+// Create Review (Reviewer from Token)
+// -----------------------------
 const createReview = async (req, res) => {
   try {
-    const { productId, rating, comment, reviewer } = req.body;
+    const user = getUserFromToken(req);
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized or invalid token' });
+    }
+
+    const { productId, rating, comment } = req.body;
 
     if (!productId || !rating) {
       return res.status(400).json({ message: 'productId and rating are required' });
@@ -53,22 +83,27 @@ const createReview = async (req, res) => {
         productId: Number(productId),
         rating: Number(rating),
         comment,
-        reviewer: reviewer || 'Anonymous',
+        reviewer: user.name || user.email || 'Anonymous',
       },
     });
 
-    res.status(201).json({ message: 'Review created successfully', review: newReview });
+    res.status(201).json({
+      message: 'Review created successfully',
+      review: newReview,
+    });
   } catch (error) {
     console.error('Error creating review:', error);
     res.status(500).json({ message: 'Failed to create review' });
   }
 };
 
-
+// -----------------------------
+// Update Review
+// -----------------------------
 const updateReview = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rating, comment, reviewer } = req.body;
+    const { rating, comment } = req.body;
 
     const existing = await prisma.review.findUnique({ where: { id: Number(id) } });
     if (!existing) {
@@ -77,17 +112,22 @@ const updateReview = async (req, res) => {
 
     const updatedReview = await prisma.review.update({
       where: { id: Number(id) },
-      data: { rating, comment, reviewer },
+      data: { rating, comment },
     });
 
-    res.status(200).json({ message: 'Review updated successfully', review: updatedReview });
+    res.status(200).json({
+      message: 'Review updated successfully',
+      review: updatedReview,
+    });
   } catch (error) {
     console.error('Error updating review:', error);
     res.status(500).json({ message: 'Failed to update review' });
   }
 };
 
-
+// -----------------------------
+// Delete Review
+// -----------------------------
 const deleteReview = async (req, res) => {
   try {
     const { id } = req.params;
@@ -107,7 +147,7 @@ const deleteReview = async (req, res) => {
 };
 
 module.exports = {
-    getReviewById,
+  getReviewById,
   getAllReviews,
   createReview,
   updateReview,

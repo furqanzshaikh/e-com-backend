@@ -63,48 +63,63 @@ exports.deleteCoupon = async (req, res) => {
 
 
 exports.applyCoupon = async (req, res) => {
-  let { code, totalAmount } = req.body;
-
   try {
-    totalAmount = Number(totalAmount); // ✅ Convert to number
+    const { code, totalAmount } = req.body;
 
+    // ✅ Validate inputs
+    if (!code || totalAmount == null) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Coupon code and total amount are required" });
+    }
+
+    const total = parseFloat(totalAmount);
+    if (isNaN(total) || total <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid total amount" });
+    }
+
+    // ✅ Fetch coupon
     const coupon = await prisma.coupon.findUnique({
       where: { code: code.toUpperCase() },
     });
 
     if (!coupon || !coupon.isActive)
-      return res.status(400).json({ success: false, error: "Invalid coupon" });
+      return res.status(400).json({ success: false, error: "Invalid or inactive coupon" });
 
     if (new Date(coupon.expiryDate) < new Date())
-      return res
-        .status(400)
-        .json({ success: false, error: "Coupon expired" });
+      return res.status(400).json({ success: false, error: "Coupon expired" });
 
-    if (totalAmount < coupon.minPurchaseAmount)
+    if (total < coupon.minPurchaseAmount)
       return res.status(400).json({
         success: false,
         error: `Minimum purchase of ₹${coupon.minPurchaseAmount} required`,
       });
 
+    // ✅ Calculate discount
     let discount = 0;
 
     if (coupon.discountType === "PERCENTAGE") {
-      discount = (coupon.discountValue / 100) * totalAmount;
-      if (coupon.maxDiscountAmount)
+      discount = (coupon.discountValue / 100) * total;
+      if (coupon.maxDiscountAmount) {
         discount = Math.min(discount, coupon.maxDiscountAmount);
+      }
     } else {
       discount = coupon.discountValue;
     }
 
-    const finalAmount = Math.max(totalAmount - discount, 0);
+    const finalAmount = Math.max(total - discount, 0);
 
-    res.json({
+    return res.json({
       success: true,
-      discount: discount.toFixed(2),
-      finalAmount: finalAmount.toFixed(2),
+      message: "Coupon applied successfully",
+      appliedCoupon: coupon.code,
+      discountAmount: Number(discount.toFixed(2)),
+      finalAmount: Number(finalAmount.toFixed(2)),
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error(err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 };
-

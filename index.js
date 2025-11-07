@@ -16,6 +16,8 @@ const categoryRouter = require('./src/routes/categoryRouter');
 const reviewRouter = require('./src/routes/reviewRouter')
 const couponRouter = require('./src/routes/couponRouter')
 const saleRouter = require('./src/routes/saleRouter')
+const accessoryReviewRouter = require('./src/routes/accessoryReviewRouter')
+
 
 let prisma;
 if (!global.prisma) {
@@ -63,6 +65,8 @@ app.use(categoryRouter)
 app.use(reviewRouter)
 app.use('/coupon',couponRouter)
 app.use('/sale',saleRouter)
+app.use('/accessory',accessoryReviewRouter)
+
 
 
 
