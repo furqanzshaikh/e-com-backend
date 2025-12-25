@@ -760,7 +760,7 @@ const addToCart = async (req, res) => {
     if (!Array.isArray(items) || items.length === 0) {
       return res
         .status(400)
-        .json({ message: 'Request body must be a non-empty array or object' });
+        .json({ message: "Request body must be a non-empty array or object" });
     }
 
     const addedItems = [];
@@ -770,35 +770,40 @@ const addToCart = async (req, res) => {
 
       if (!productId && !accessoryId && !partId) {
         return res.status(400).json({
-          message: 'Each item must have either productId, accessoryId, or partId',
+          message:
+            "Each item must have either productId, accessoryId, or partId",
         });
       }
 
-      if (!quantity || quantity < 1 || typeof sellingPrice !== 'number') {
+      if (!quantity || quantity < 1 || typeof sellingPrice !== "number") {
         return res.status(400).json({
-          message: 'Each item must have a valid quantity and sellingPrice',
+          message: "Each item must have a valid quantity and sellingPrice",
         });
       }
 
       // 🧩 Determine item type
       let model;
       let itemId;
+      let modelName;
       if (productId) {
         model = prisma.product;
         itemId = productId;
+        modelName = "product";
       } else if (accessoryId) {
         model = prisma.accessory;
         itemId = accessoryId;
+        modelName = "accessory";
       } else if (partId) {
         model = prisma.part;
         itemId = partId;
+        modelName = "part";
       }
 
       // 🛡️ Validate item exists before creating
       const exists = await model.findUnique({ where: { id: itemId } });
       if (!exists) {
         return res.status(404).json({
-          message: `Item with id ${itemId} not found in ${model._modelMeta.name} table`,
+          message: `Item with id ${itemId} not found in ${modelName} table`,
         });
       }
 
@@ -841,12 +846,14 @@ const addToCart = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: 'Items added to cart successfully',
+      message: "Items added to cart successfully",
       data: addedItems,
     });
   } catch (error) {
-    console.error('❌ Error in addToCart:', error);
-    return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    console.error("❌ Error in addToCart:", error);
+    return res
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 };
 

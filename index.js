@@ -17,6 +17,7 @@ const reviewRouter = require('./src/routes/reviewRouter')
 const couponRouter = require('./src/routes/couponRouter')
 const saleRouter = require('./src/routes/saleRouter')
 const accessoryReviewRouter = require('./src/routes/accessoryReviewRouter')
+const customBuildMail = require('./src/routes/customBuildEmailRouter')
 
 
 let prisma;
@@ -66,6 +67,7 @@ app.use(reviewRouter)
 app.use('/coupon',couponRouter)
 app.use('/sale',saleRouter)
 app.use('/accessory',accessoryReviewRouter)
+app.use('/',customBuildMail)
 
 
 

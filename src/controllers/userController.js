@@ -6,8 +6,8 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user:"furqanshaikh939@gmail.com",
-    pass: 'smdj irys luou kzve'
+    user:process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   },
 });
 const getAllUsers = async (req, res) => {
@@ -85,7 +85,7 @@ const createUser = async (req, res) => {
     });
 
     await transporter.sendMail({
-      from:"furqanshaikh939@gmail.com",
+      from:"Sales.maxtechindia.in@gmail.com",
       to: finalEmail,
       subject: "Email Verification OTP",
       text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
